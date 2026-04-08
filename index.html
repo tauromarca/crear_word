@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generar Ficha</title>
+
+<!-- Librerías -->
+<script src="https://unpkg.com/pizzip@3.1.5/dist/pizzip.js"></script>
+<script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f4f4f4;
+  text-align: center;
+  padding-top: 40px;
+}
+
+.container {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  width: 350px;
+  margin: auto;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+#status {
+  margin-top: 15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Generando Ficha</h2>
+  <div id="status"></div>
+</div>
+
+<script>
+
+// ================= CONFIG =================
+const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
+const PLANTILLA_URL = "anexo2.docx";
+
+
+let DOMINIOS_CACHE = null;
+
+// ================= UTIL =================
+function getParam(nombre) {
+  const url = new URL(window.location.href);
+  return url.searchParams.get(nombre);
+}
+
+function formatearFecha(ms) {
+  if (!ms) return "Sin registro";
+  return new Date(ms).toLocaleDateString("es-CL");
+}
+
+// ================= DOMINIOS =================
+async function obtenerDominios() {
+
+  if (DOMINIOS_CACHE) return DOMINIOS_CACHE;
+
+  const url = `${FEATURE_LAYER_URL}?f=pjson`;
+  const response = await fetch(url);
+  const data = await response.json();
+
+  const dominios = {};
+
+  data.fields.forEach(field => {
+    if (field.domain && field.domain.type === "codedValue") {
+      dominios[field.name] = Object.fromEntries(
+        field.domain.codedValues.map(cv => [cv.code, cv.name])
+      );
+    }
+  });
+
+  DOMINIOS_CACHE = dominios;
+  return dominios;
+}
+
+// ================= TRADUCCIÓN =================
+function traducirAtributos(attr, dominios) {
+
+  const nuevo = {};
+
+  Object.keys(attr).forEach(campo => {
+
+    let valor = attr[campo];
+
+    if (dominios[campo]) {
+      const mapping = dominios[campo];
+      valor = mapping[valor] ?? mapping[String(valor)] ?? valor;
+    }
+
+    if (typeof valor === "number" && valor > 1000000000000) {
+      valor = formatearFecha(valor);
+    }
+
+    nuevo[campo] = valor;
+  });
+
+  return nuevo;
+}
+
+// ================= 🔥 CHECKBOX GENERICO =================
+function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
+
+  // Inicializar todos en vacío
+  opciones.forEach((opt, i) => {
+    attr[`${prefijo}${i+1}`] = "☐";
+  });
+
+  const valor = attr[campo];
+
+  opciones.forEach((opt, i) => {
+
+    if (
+      valor == opt.code ||
+      valor === opt.label
+    ) {
+      attr[`${prefijo}${i+1}`] = "☑";
+    }
+
+  });
+
+  return attr;
+}
+
+// ================= MAIN =================
+async function generar() {
+
+  const status = document.getElementById("status");
+  status.innerHTML = "Procesando...";
+
+  try {
+
+    const rut = getParam("rut");
+
+    if (!rut) {
+      status.innerHTML = "Debe ingresar un RUT";
+      return;
+    }
+
+    // Query ArcGIS
+    const query = `${FEATURE_LAYER_URL}/query?where=rut_asignatario='${rut}'&outFields=*&f=json`;
+
+    const response = await fetch(query);
+    const data = await response.json();
+
+    if (!data.features || data.features.length === 0) {
+      status.innerHTML = "No encontrado";
+      return;
+    }
+
+    const attr_original = data.features[0].attributes;
+
+    // Dominios
+    const dominios = await obtenerDominios();
+
+    // Traducir
+    let attr = traducirAtributos(attr_original, dominios);
+
+    // 🔥 CHECKBOX GENERICO
+    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
+      {code: 1, label: "1° Visita"},
+      {code: 2, label: "2° Visita"},
+      {code: 3, label: "3° Visita"}
+    ], "v");
+
+    attr = aplicarCheckboxGenerico(attr, "autorizacion", [
+      {code: 1, label: "Autoriza fotografías inmueble"},
+      {code: 2, label: "No autoriza fotografías inmueble"},
+      {code: 3, label: "Se deja Notificación"}
+    ], "aut");
+
+    // ================= DOCX =================
+    const content = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
+
+    const zip = new PizZip(content);
+
+    const doc = new window.docxtemplater(zip, {
+      delimiters: {
+        start: "[[",
+        end: "]]"
+      }
+    });
+
+    doc.setData(attr);
+    doc.render();
+
+    const blob = doc.getZip().generate({ type: "blob" });
+    saveAs(blob, `Ficha_${rut}.docx`);
+
+    status.innerHTML = "Documento generado ✔";
+
+  } catch (error) {
+    console.error(error);
+    status.innerHTML = "Error en proceso";
+  }
+}
+
+// ================= AUTO =================
+window.onload = () => {
+  const rut = getParam("rut");
+  if (rut) generar();
+};
+
+</script>
+
+</body>
+</html>
