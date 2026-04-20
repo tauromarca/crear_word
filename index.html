@@ -70,21 +70,21 @@ async function generar() {
       return;
     }
 
+ 
     // 🔥 LOGICA DE CHECKBOXES (Basada en los valores recibidos)
     // Para Visitas
     attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
-      {code: 1, label: "1° Visita"},
-      {code: 2, label: "2° Visita"},
+      {code: "1° Visita", label: "1° Visita"},
+      {code: "2° Visita", label: "2° Visita"},
       {code: 3, label: "3° Visita"}
     ], "v");
 
     // Para Autorización
     attr = aplicarCheckboxGenerico(attr, "autorizacion", [
-      {code: 1, label: "Autoriza fotografías inmueble"},
-      {code: 2, label: "No autoriza fotografías inmueble"},
-      {code: 3, label: "Se deja Notificación"}
+      {code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble"},
+      {code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble"},
+      {code: "Se deja Notificación", label: "Se deja Notificación"}
     ], "aut");
-
     // ================= DOCX =================
     const response = await fetch(PLANTILLA_URL);
     if (!response.ok) throw new Error("No se pudo cargar la plantilla .docx");
