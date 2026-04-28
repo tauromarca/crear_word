@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generar Ficha</title>
+
+<!-- Librerías -->
+<script src="https://unpkg.com/pizzip@3.1.5/dist/pizzip.js"></script>
+<script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+body { font-family: Arial; background: #f4f4f4; text-align: center; padding-top: 40px; }
+.container { background: white; padding: 25px; border-radius: 10px; width: 350px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+#status { margin-top: 15px; font-weight: bold; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h2>Generando Ficha</h2>
+  <div id="status">Esperando parámetros...</div>
+</div>
+
+<script>
+// ================= CONFIG =================
+const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
+
+// ================= UTIL =================
+function getAllParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const params = {};
+  for (const [key, value] of urlParams) {
+    // Si parece una fecha (timestamp largo), formatear
+    if (!isNaN(value) && value.length > 11) {
+       params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
+    } else {
+       params[key] = value;
+    }
+  }
+  return params;
+}
+
+// ================= 🔥 CHECKBOX GENERICO =================
+function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
+  opciones.forEach((opt, i) => {
+    attr[`${prefijo}${i+1}`] = "☐";
+  });
+
+  const valor = attr[campo];
+  opciones.forEach((opt, i) => {
+    if (valor == opt.code || valor == opt.label) {
+      attr[`${prefijo}${i+1}`] = "☑";
+    }
+  });
+  return attr;
+}
+
+// ================= MAIN =================
+async function generar() {
+  const status = document.getElementById("status");
+  status.innerHTML = "Procesando documento...";
+
+  try {
+    // Capturar todos los datos desde la URL
+    let attr = getAllParams();
+
+    if (Object.keys(attr).length === 0) {
+      status.innerHTML = "Error: No se recibieron datos por URL";
+      return;
+    }
+
+    // 🔥 LOGICA DE CHECKBOXES (Basada en los valores recibidos)
+    // Para Visitas
+    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
+      {code: 1, label: "1° Visita"},
+      {code: 2, label: "2° Visita"},
+      {code: 3, label: "3° Visita"}
+    ], "v");
+
+    // Para Autorización
+    attr = aplicarCheckboxGenerico(attr, "autorizacion", [
+      {code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble"},
+      {code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble"},
+      {code: "Se deja Notificación", label: "Se deja Notificación"}
+    ], "aut");
+
+    // ================= DOCX =================
+    const response = await fetch(PLANTILLA_URL);
+    if (!response.ok) throw new Error("No se pudo cargar la plantilla .docx");
+    
+    const content = await response.arrayBuffer();
+    const zip = new PizZip(content);
+
+    const doc = new window.docxtemplater(zip, {
+      delimiters: { start: "[[", end: "]]" },
+      paragraphLoop: true,
+      linebreaks: true
+    });
+
+    doc.setData(attr);
+    doc.render();
+
+    const blob = doc.getZip().generate({ type: "blob" });
+    saveAs(blob, `Ficha_${attr.rut_asignatario || 'Generica'}.docx`);
+
+    status.innerHTML = "Documento generado ✔";
+
+  } catch (error) {
+    console.error(error);
+    status.innerHTML = "Error al generar el documento";
+  }
+}
+
+window.onload = generar;
+</script>
+</body>
+</html>
