@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generar Ficha Capitulo 3</title>
+
+<!-- Librerías Locales -->
+<script src="pizzip.js"></script>
+<script src="docxtemplater.js"></script>
+<script src="FileSaver.min.js"></script>
+
+<style>
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f4f4; text-align: center; padding-top: 40px; }
+.container { background: white; padding: 35px; border-radius: 10px; width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+#status { margin-top: 15px; font-weight: bold; color: #0078d4; }
+.instrucciones { font-size: 0.8em; color: #666; margin-top: 20px; text-align: left; background: #eee; padding: 10px; border-radius: 5px; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h2>Generando Ficha DTC</h2>
+  <div id="status">Procesando parámetros...</div>
+  
+  <div id="pdf-note" class="instrucciones" style="display:none;">
+    <strong>Nota sobre PDF:</strong> El archivo Word se ha generado. Para obtener el PDF con el formato exacto de la plantilla, abra el archivo y guárdelo como PDF, o use un servicio de conversión.
+  </div>
+</div>
+
+<script>
+// ================= CONFIG =================
+const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
+
+// ================= UTIL =================
+function getAllParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const params = {};
+  for (const [key, value] of urlParams) {
+    // Si parece una fecha (timestamp de ArcGIS), formatear
+    if (!isNaN(value) && value.length > 11) {
+       params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
+    } else {
+       params[key] = value;
+    }
+  }
+  return params;
+}
+
+// ================= 🔥 LÓGICA DE CHECKBOXES SI/NO =================
+function procesarIncrementosSiNo(attr) {
+  const camposIncrementos = [
+    "PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", 
+    "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUICTURA", 
+    "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION"
+  ];
+
+  camposIncrementos.forEach(campo => {
+    // Si el valor es "Si" (independiente de mayúsculas/minúsculas)
+    if (attr[campo] && attr[campo].toString().toLowerCase() === "si") {
+      attr[campo] = "☑"; 
+    } else {
+      attr[campo] = "☐"; // Si es "No", vacío o cualquier otra cosa
+    }
+  });
+  return attr;
+}
+
+// ================= CHECKBOX GENERICO (Para Visitas y Otros) =================
+function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
+  opciones.forEach((opt, i) => {
+    attr[`${prefijo}${i+1}`] = "☐";
+  });
+
+  const valor = attr[campo];
+  opciones.forEach((opt, i) => {
+    if (valor == opt.code || valor == opt.label) {
+      attr[`${prefijo}${i+1}`] = "☑";
+    }
+  });
+  return attr;
+}
+
+// ================= MAIN =================
+async function generar() {
+  const status = document.getElementById("status");
+  
+  try {
+    let attr = getAllParams();
+
+    if (Object.keys(attr).length === 0) {
+      status.innerHTML = "❌ Error: No se recibieron datos de ArcGIS";
+      return;
+    }
+
+    // 1. Procesar Incrementos (Si/No a Checkbox)
+    attr = procesarIncrementosSiNo(attr);
+
+    // 2. Lógica de Checkboxes existentes (Visitas y Autorización)
+    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
+      {code: 1, label: "1° Visita"}, {code: 2, label: "2° Visita"}, {code: 3, label: "3° Visita"}
+    ], "v");
+
+    attr = aplicarCheckboxGenerico(attr, "autorizacion", [
+      {code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble"},
+      {code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble"},
+      {code: "Se deja Notificación", label: "Se deja Notificación"}
+    ], "aut");
+
+    // 3. Cargar Plantilla
+    status.innerHTML = "📄 Cargando plantilla Word...";
+    const response = await fetch(PLANTILLA_URL);
+    if (!response.ok) throw new Error("No se pudo cargar la plantilla .docx");
+    
+    const content = await response.arrayBuffer();
+    const zip = new PizZip(content);
+
+    const doc = new window.docxtemplater(zip, {
+      delimiters: { start: "[[", end: "]]" },
+      paragraphLoop: true,
+      linebreaks: true
+    });
+
+    // 4. Renderizar datos
+    doc.setData(attr);
+    doc.render();
+
+    // 5. Generar archivo DOCX
+    const blob = doc.getZip().generate({ type: "blob" });
+    const nombreArchivo = `Ficha_Capitulo3_${attr.RUT_COPROPIEDAD || 'Generica'}`;
+    
+    saveAs(blob, `${nombreArchivo}.docx`);
+
+    status.innerHTML = "✅ Documento generado con éxito";
+    document.getElementById("pdf-note").style.display = "block";
+
+    // --- OPCIONAL: CONVERSIÓN A PDF ---
+    // Nota: Para que el PDF sea automático y real, necesitarías una API como ConvertAPI.
+    // Si decides usarla, aquí iría el código para enviar el blob al servidor de conversión.
+
+  } catch (error) {
+    console.error(error);
+    status.innerHTML = "❌ Error al generar el documento";
+  }
+}
+
+window.onload = generar;
+</script>
+</body>
+</html>
