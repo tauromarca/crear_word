@@ -102,7 +102,7 @@ async function generar() {
     doc.render();
 
     const blob = doc.getZip().generate({ type: "blob" });
-    saveAs(blob, `Ficha_${attr.rut_asignatario || 'Generica'}.docx`);
+    saveAs(blob, `Ficha_Capitulo3${attr.RUT_COPROPIEDAD}.docx`);
 
     status.innerHTML = "Documento generado ✔";
 
