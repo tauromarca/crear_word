@@ -56,7 +56,7 @@ function procesarIncrementosSiNo(attr) {
 
   camposIncrementos.forEach(campo => {
     // Si el valor es "Si" (independiente de mayúsculas/minúsculas)
-    if (attr[campo] && attr[campo].toString().toLowerCase() === "Sí") {
+    if (attr[campo] && attr[campo].toString().toLowerCase() === "Si") {
       attr[campo] = "☑"; 
     } else {
       attr[campo] = "☐"; // Si es "No", vacío o cualquier otra cosa
