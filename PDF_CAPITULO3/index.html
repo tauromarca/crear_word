@@ -39,14 +39,14 @@ function generarListaPriorizada(attr) {
   // Mapeo de las partidas con sus respectivos campos de puntaje e intervención
   // Ajusta los nombres de los campos (ej: INTERVENCION_A) según vengan de ArcGIS
   let partidas = [
-    { nombre: "A. Áreas Verdes y Equipamiento", p: attr.PUNTAJE_AREA_VERDE, int: attr.INTERVENCION_AREA_VERDE},
-    { nombre: "B. Cierres Perimetrales", p: attr.PUNTAJE_CIERRES, int: attr.INTERVENCION_CIERRES},
-    { nombre: "C. Techumbre", p: attr.PUNTAJE_TECHUMBRE, int: attr.INTERVENCION_TECHUMBRE},
-    { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: attr.PUNTAJE_ASCENSORES, int: attr.INTERVENCION_ASCENSORES},
-    { nombre: "E. Fachadas y/o Muros", p: attr.PUNTAJE_FACHADA, int: attr.INTERVENCION_FACHADA},
-    { nombre: "F. Sistemas de Iluminación", p: attr.PUNTAJE_ILUMINACION, int: attr.INTERVENCION_ILUMINACION},
-    { nombre: "G. Redes de Servicio", p: attr.PUNTAJE_REDES, int: attr.INTERVENCION_REDES},
-    { nombre: "K. Accesibilidad Universal", p: attr.PUNTAJE_ACCESIBILIDAD, int: attr.INTERVENCION_ACCESIBILIDAD}
+    { nombre: "A. Áreas Verdes y Equipamiento", p: attr.PUNTAJE_AREA_VERDE, intervencion: attr.INTERVENCION_AREA_VERDE},
+    { nombre: "B. Cierres Perimetrales", p: attr.PUNTAJE_CIERRES, intervencion: attr.INTERVENCION_CIERRES},
+    { nombre: "C. Techumbre", p: attr.PUNTAJE_TECHUMBRE, intervencion: attr.INTERVENCION_TECHUMBRE},
+    { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: attr.PUNTAJE_ASCENSORES, intervencion: attr.INTERVENCION_ASCENSORES},
+    { nombre: "E. Fachadas y/o Muros", p: attr.PUNTAJE_FACHADA, intervencion: attr.INTERVENCION_FACHADA},
+    { nombre: "F. Sistemas de Iluminación", p: attr.PUNTAJE_ILUMINACION, intervencion: attr.INTERVENCION_ILUMINACION},
+    { nombre: "G. Redes de Servicio", p: attr.PUNTAJE_REDES, intervencion: attr.INTERVENCION_REDES},
+    { nombre: "K. Accesibilidad Universal", p: attr.PUNTAJE_ACCESIBILIDAD, intervencion: attr.INTERVENCION_ACCESIBILIDAD}
   ];
 
   // Convertir puntajes a números y ordenar de mayor a menor
