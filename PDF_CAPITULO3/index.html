@@ -3,43 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <title>Generar Ficha Capitulo 3</title>
-
-<!-- Librerías Locales -->
 <script src="pizzip.js"></script>
 <script src="docxtemplater.js"></script>
 <script src="FileSaver.min.js"></script>
-
 <style>
 body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f4f4; text-align: center; padding-top: 40px; }
 .container { background: white; padding: 35px; border-radius: 10px; width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
 #status { margin-top: 15px; font-weight: bold; color: #0078d4; }
-.instrucciones { font-size: 0.8em; color: #666; margin-top: 20px; text-align: left; background: #eee; padding: 10px; border-radius: 5px; }
 </style>
 </head>
-
 <body>
 <div class="container">
   <h2>Generando Ficha DTC</h2>
   <div id="status">Procesando parámetros...</div>
-  
-  <div id="pdf-note" class="instrucciones" style="display:none;">
-    <strong>Nota sobre PDF:</strong> El archivo Word se ha generado. Para obtener el PDF con el formato exacto de la plantilla, abra el archivo y guárdelo como PDF, o use un servicio de conversión.
-  </div>
 </div>
 
 <script>
-// ================= CONFIG =================
 const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
-// ================= UTIL =================
 function getAllParams() {
   const urlParams = new URLSearchParams(window.location.search);
   const params = {};
   for (const [key, value] of urlParams) {
-    // CONDICIÓN MEJORADA:
-    // 1. Debe ser un número (!isNaN)
-    // 2. Debe ser largo (length > 11)
-    // 3. NO debe contener un punto decimal (para no confundirlo con puntajes)
     if (!isNaN(value) && value.length > 11 && !value.includes('.')) {
        params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
     } else {
@@ -48,71 +33,67 @@ function getAllParams() {
   }
   return params;
 }
-// ================= 🔥 LÓGICA DE CHECKBOXES SI/NO =================
-function procesarIncrementosSiNo(attr) {
-  const camposIncrementos = [
-    "PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", 
-    "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", 
-    "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION", "EFICIENCIA_ENERGETICA", "ACONDICIONAMIENTO"
+
+// ================= 🔥 NUEVA FUNCIÓN: ORDENAR TABLA IV =================
+function generarListaPriorizada(attr) {
+  // Mapeo de las partidas con sus respectivos campos de puntaje e intervención
+  // Ajusta los nombres de los campos (ej: INTERVENCION_A) según vengan de ArcGIS
+  let partidas = [
+    { nombre: "A. Áreas Verdes y Equipamiento", p: attr.PUNTAJE_AREA_VERDE, int: attr.INTERVENCION_A },
+    { nombre: "B. Cierres Perimetrales", p: attr.PUNTAJE_CIERRES, int: attr.INTERVENCION_B },
+    { nombre: "C. Techumbre", p: attr.PUNTAJE_TECHUMBRE, int: attr.INTERVENCION_C },
+    { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: attr.PUNTAJE_ASCENSORES, int: attr.INTERVENCION_D },
+    { nombre: "E. Fachadas y/o Muros", p: attr.PUNTAJE_FACHADA, int: attr.INTERVENCION_E },
+    { nombre: "F. Sistemas de Iluminación", p: attr.PUNTAJE_ILUMINACION, int: attr.INTERVENCION_F },
+    { nombre: "G. Redes de Servicio", p: attr.PUNTAJE_REDES, int: attr.INTERVENCION_G },
+    { nombre: "K. Accesibilidad Universal", p: attr.PUNTAJE_ACCESIBILIDAD, int: attr.INTERVENCION_K }
   ];
 
+  // Convertir puntajes a números y ordenar de mayor a menor
+  partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
+
+  // Formatear el puntaje para que no tenga tantos decimales en el Word (opcional)
+  partidas.forEach(item => {
+    if(!isNaN(item.p)) {
+        item.p = parseFloat(item.p).toFixed(4); // 4 decimales
+    }
+  });
+
+  return partidas;
+}
+
+function procesarIncrementosSiNo(attr) {
+  const camposIncrementos = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION", "EFICIENCIA_ENERGETICA", "ACONDICIONAMIENTO"];
   camposIncrementos.forEach(campo => {
-    // Si el valor es "Si" (independiente de mayúsculas/minúsculas)
-    if (attr[campo] && attr[campo].toString().toLowerCase() === "sí") {
-      attr[campo] = "☑"; 
-    } else {
-      attr[campo] = "☐"; // Si es "No", vacío o cualquier otra cosa
-    }
+    if (attr[campo] && attr[campo].toString().toLowerCase() === "sí") { attr[campo] = "☑"; } 
+    else { attr[campo] = "☐"; }
   });
   return attr;
 }
 
-// ================= CHECKBOX GENERICO (Para Visitas y Otros) =================
 function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
-  opciones.forEach((opt, i) => {
-    attr[`${prefijo}${i+1}`] = "☐";
-  });
-
+  opciones.forEach((opt, i) => { attr[`${prefijo}${i+1}`] = "☐"; });
   const valor = attr[campo];
-  opciones.forEach((opt, i) => {
-    if (valor == opt.code || valor == opt.label) {
-      attr[`${prefijo}${i+1}`] = "☑";
-    }
-  });
+  opciones.forEach((opt, i) => { if (valor == opt.code || valor == opt.label) { attr[`${prefijo}${i+1}`] = "☑"; } });
   return attr;
 }
 
-// ================= MAIN =================
 async function generar() {
   const status = document.getElementById("status");
-  
   try {
     let attr = getAllParams();
+    if (Object.keys(attr).length === 0) { status.innerHTML = "❌ Error: Sin datos"; return; }
 
-    if (Object.keys(attr).length === 0) {
-      status.innerHTML = "❌ Error: No se recibieron datos de ArcGIS";
-      return;
-    }
-
-    // 1. Procesar Incrementos (Si/No a Checkbox)
+    // 1. Procesar Lógica de Checkboxes
     attr = procesarIncrementosSiNo(attr);
+    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [{code: 1}, {code: 2}, {code: 3}], "v");
 
-    // 2. Lógica de Checkboxes existentes (Visitas y Autorización)
-    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
-      {code: 1, label: "1° Visita"}, {code: 2, label: "2° Visita"}, {code: 3, label: "3° Visita"}
-    ], "v");
-
-    attr = aplicarCheckboxGenerico(attr, "autorizacion", [
-      {code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble"},
-      {code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble"},
-      {code: "Se deja Notificación", label: "Se deja Notificación"}
-    ], "aut");
+    // 2. 🔥 GENERAR LA LISTA ORDENADA PARA LA TABLA IV
+    attr.tabla_priorizada = generarListaPriorizada(attr);
 
     // 3. Cargar Plantilla
-    status.innerHTML = "📄 Cargando plantilla Word...";
+    status.innerHTML = "📄 Generando Word...";
     const response = await fetch(PLANTILLA_URL);
-    if (!response.ok) throw new Error("No se pudo cargar la plantilla .docx");
-    
     const content = await response.arrayBuffer();
     const zip = new PizZip(content);
 
@@ -122,29 +103,18 @@ async function generar() {
       linebreaks: true
     });
 
-    // 4. Renderizar datos
     doc.setData(attr);
     doc.render();
 
-    // 5. Generar archivo DOCX
     const blob = doc.getZip().generate({ type: "blob" });
-    const nombreArchivo = `Ficha_Capitulo3_${attr.RUT_COPROPIEDAD || 'Generica'}`;
-    
-    saveAs(blob, `${nombreArchivo}.docx`);
-
-    status.innerHTML = "✅ Documento generado con éxito";
-    document.getElementById("pdf-note").style.display = "block";
-
-    // --- OPCIONAL: CONVERSIÓN A PDF ---
-    // Nota: Para que el PDF sea automático y real, necesitarías una API como ConvertAPI.
-    // Si decides usarla, aquí iría el código para enviar el blob al servidor de conversión.
+    saveAs(blob, `Ficha_Priorizada_${attr.RUT_COPROPIEDAD || 'DTC'}.docx`);
+    status.innerHTML = "✅ ¡Éxito!";
 
   } catch (error) {
     console.error(error);
-    status.innerHTML = "❌ Error al generar el documento";
+    status.innerHTML = "❌ Error en el proceso";
   }
 }
-
 window.onload = generar;
 </script>
 </body>
