@@ -36,8 +36,11 @@ function getAllParams() {
   const urlParams = new URLSearchParams(window.location.search);
   const params = {};
   for (const [key, value] of urlParams) {
-    // Si parece una fecha (timestamp de ArcGIS), formatear
-    if (!isNaN(value) && value.length > 11) {
+    // CONDICIÓN MEJORADA:
+    // 1. Debe ser un número (!isNaN)
+    // 2. Debe ser largo (length > 11)
+    // 3. NO debe contener un punto decimal (para no confundirlo con puntajes)
+    if (!isNaN(value) && value.length > 11 && !value.includes('.')) {
        params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
     } else {
        params[key] = value;
@@ -45,7 +48,6 @@ function getAllParams() {
   }
   return params;
 }
-
 // ================= 🔥 LÓGICA DE CHECKBOXES SI/NO =================
 function procesarIncrementosSiNo(attr) {
   const camposIncrementos = [
