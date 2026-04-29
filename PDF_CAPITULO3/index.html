@@ -107,7 +107,7 @@ async function generar() {
     doc.render();
 
     const blob = doc.getZip().generate({ type: "blob" });
-    saveAs(blob, `Ficha_Priorizada_${attr.RUT_COPROPIEDAD || 'DTC'}.docx`);
+    saveAs(blob, `Ficha_Capitulo3_${attr.RUT_COPROPIEDAD || 'DTC'}.docx`);
     status.innerHTML = "✅ ¡Éxito!";
 
   } catch (error) {
