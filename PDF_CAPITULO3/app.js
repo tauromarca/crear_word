@@ -22,14 +22,14 @@
         // Función para ordenar la Tabla IV por puntaje descendente
         function prepararTablaPriorizada(rawData) {
             let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_obtenido, intervencion: rawData.a_mostrar_ponderado },
-                { nombre: "B. Cierres Perimetrales", p: rawData.b_obtenido, intervencion: rawData.b_mostrar_ponderado },
-                { nombre: "C. Techumbre", p: rawData.c_obtenido, intervencion: rawData.c_mostrar_ponderado },
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_obtenido, intervencion: rawData.d_mostrar_ponderado },
-                { nombre: "E. Fachadas y/o Muros", p: rawData.e_obtenido, intervencion: rawData.e_mostrar_ponderado },
-                { nombre: "F. Sistemas de Iluminación", p: rawData.f_obtenido, intervencion: rawData.f_mostrar_ponderado },
-                { nombre: "G. Redes de Servicio", p: rawData.g_obtenido, intervencion: rawData.g_mostrar_ponderado },
-                { nombre: "K. Accesibilidad Universal", p: rawData.k_obtenido, intervencion: rawData.k_mostrar_ponderado }
+                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, intervencion: rawData.tipo_intervencion },
+                { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, intervencion: rawData.tipo_intervencion_perimetrales },
+                { nombre: "C. Techumbre", p: rawData.c_ponderado, intervencion: rawData.tipo_intervencion_techumbre},
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_ponderado, intervencion: rawData.tipo_intervencion_ascensores},
+                { nombre: "E. Fachadas y/o Muros", p: rawData.e_ponderado, intervencion: rawData.tipo_intervencion_fachadas },
+                { nombre: "F. Sistemas de Iluminación", p: rawData.f_ponderado, intervencion: rawData.tipo_intervencion_iluminacion},
+                { nombre: "G. Redes de Servicio", p: rawData.g_ponderado, intervencion: rawData.tipo_intervencion_redes},
+                { nombre: "K. Accesibilidad Universal", p: rawData.k_ponderado, intervencion: rawData.tipo_intervencion_accesibilidad }
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
