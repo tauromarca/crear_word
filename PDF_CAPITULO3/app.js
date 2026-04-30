@@ -1,15 +1,9 @@
 (function () {
     "use strict";
 
-    // =========================================================================
-    // CONFIGURACIÓN: URL de consulta segura (AKS -> ArcGIS)
-    // =========================================================================
-    //const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
-
-    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0"
+    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
     const PLANTILLA_URL = "anexo2.docx";
 
-    // Hallazgo 2.1: Sanitización para evitar XSS
     function sanitize(str) {
         if (str === null || str === undefined) return "";
         const temp = document.createElement('div');
@@ -17,22 +11,41 @@
         return temp.innerHTML;
     }
 
-    // Hallazgo 2.2: Obtener datos reales desde el servidor (No confiar en la URL)
+    // Hallazgo 2.2: Obtención segura de datos
     async function obtenerDatosArcGIS(objectid) {
-        // Se usa fetch para obtener la información completa y fidedigna
-        const queryUrl = `${FEATURE_LAYER_URL}/query?objectid=${objectid}&outFields=*&f=json`;
+        // Intentamos detectar el nombre del campo ID (OBJECTID, fid, etc.)
+        // Usamos una consulta general para obtener el primer registro y ver cómo se llama su ID
+        // o simplemente usamos una consulta 'where' que es más estándar.
+        
+        // Probamos con la sintaxis estándar de filtrado por ID
+        const queryUrl = `${FEATURE_LAYER_URL}/query?where=1%3D1&objectid=${objectid}&outFields=*&f=json`;
         
         try {
             const response = await fetch(queryUrl);
-            if (!response.ok) throw new Error("Servicio de datos no disponible.");
-            
             const data = await response.json();
-            if (!data.features || data.features.length === 0) {
-                throw new Error("El registro no existe o no tiene permisos para verlo.");
+
+            // LOG DE DIAGNÓSTICO (Revisar en Consola F12)
+            console.log("Respuesta de ArcGIS:", data);
+
+            if (data.error) {
+                throw new Error(`ArcGIS Error ${data.error.code}: ${data.error.message}`);
             }
+
+            if (!data.features || data.features.length === 0) {
+                // Si el ID no funciona, intentamos una búsqueda por campo OBJECTID explícito
+                const retryUrl = `${FEATURE_LAYER_URL}/query?where=objectid%3D${objectid}+OR+objectid%3D${objectid}+OR+fid%3D${objectId}&outFields=*&f=json`;
+                const retryResp = await fetch(retryUrl);
+                const retryData = await retryResp.json();
+                
+                if (!retryData.features || retryData.features.length === 0) {
+                    throw new Error("No se encontró el registro. Verifique que el ID sea correcto y que el servicio sea público.");
+                }
+                return retryData.features[0].attributes;
+            }
+            
             return data.features[0].attributes;
         } catch (error) {
-            throw new Error("Error de integridad de datos: " + error.message);
+            throw new Error("Fallo de conexión a base de datos GIS: " + error.message);
         }
     }
 
@@ -40,22 +53,19 @@
         const status = document.getElementById("status");
         const urlParams = new URLSearchParams(window.location.search);
         
-        // Soporte para 'objectIds' (según tu URL), 'oid' o 'objectid'
-        const oid = urlParams.get("objectid") || urlParams.get("oid") || urlParams.get("objectid");
+        // Capturamos el ID de cualquier variante posible en la URL
+        const oid = urlParams.get("objectIds") || urlParams.get("oid") || urlParams.get("objectid") || urlParams.get("OBJECTID");
 
         if (!oid) {
-            status.textContent = "Acceso Denegado: Credencial de registro (ID) no detectada.";
+            status.textContent = "Acceso Denegado: No se proporcionó un ID válido.";
             return;
         }
 
         try {
-            status.textContent = "🔐 Validando y recuperando datos seguros...";
-            
-            // Hallazgo 2.2 y 2.3: Ignoramos los datos de la URL y bajamos los originales
+            status.textContent = "🔐 Accediendo a datos seguros...";
             const rawData = await obtenerDatosArcGIS(oid);
             
-            // Hallazgo 2.2: LIMPIEZA INMEDIATA DE LA URL
-            // Borra el RUT y el ID de la barra de direcciones para que no queden en logs/historial
+            // Hallazgo 2.2: Limpiar URL inmediatamente
             if (window.history.replaceState) {
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -63,50 +73,35 @@
             const attr = {};
             Object.keys(rawData).forEach(key => {
                 let val = rawData[key];
-                // Formatear fechas de ArcGIS
                 if (typeof val === 'number' && val > 1000000000000) {
                     val = new Date(val).toLocaleDateString("es-CL");
                 }
                 attr[key] = sanitize(val);
             });
 
-            status.textContent = "📝 Generando documento oficial...";
+            status.textContent = "📝 Generando documento...";
             const templateResp = await fetch(PLANTILLA_URL);
-            if (!templateResp.ok) throw new Error("Plantilla institucional no encontrada.");
+            if (!templateResp.ok) throw new Error("No se pudo cargar la plantilla local.");
             
             const content = await templateResp.arrayBuffer();
             const zip = new window.PizZip(content);
             const doc = new window.docxtemplater(zip, { 
                 delimiters: { start: "[[", end: "]]" },
-                paragraphLoop: true,
-                linebreaks: true 
+                paragraphLoop: true, linebreaks: true 
             });
 
             doc.setData(attr);
             doc.render();
 
             const docxBlob = doc.getZip().generate({ type: "blob" });
-            const fileName = `Ficha_Segura_${oid}.docx`;
-
-            // Descarga local
-            window.saveAs(docxBlob, fileName);
+            window.saveAs(docxBlob, `Ficha_Sede_Araucania_${oid}.docx`);
             
-            // Mensaje de éxito con instrucciones PDF (M365)
-            status.innerHTML = `
-                <div style="color: #27ae60; font-size: 1.1em;">✔ Documento generado exitosamente.</div>
-                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #ddd;">
-                    <p style="margin-top:0"><b>Instrucciones PDF (M365):</b></p>
-                    <ol style="font-size: 0.85em; color: #333;">
-                        <li>Abra el archivo descargado en su Word institucional.</li>
-                        <li>Vaya al menú <b>Archivo</b>.</li>
-                        <li>Seleccione <b>Exportar</b> y luego <b>Crear documento PDF</b>.</li>
-                    </ol>
-                </div>
-            `;
+            status.innerHTML = `<div style="color: green;">✔ Generado exitosamente.</div>
+                                <p style="font-size:0.8em;">Use Microsoft 365 para exportar a PDF.</p>`;
 
         } catch (error) {
-            console.error("Brecha detectada:", error);
-            status.textContent = "❌ Error: " + error.message;
+            console.error("Error en flujo seguro:", error);
+            status.textContent = "❌ " + error.message;
         }
     }
 
