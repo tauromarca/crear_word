@@ -90,7 +90,7 @@
                 });
 
                 // Lógica de Checkboxes Unicode
-                const incrementos = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION", "EFICIENCIA_ENERGETICA", "ACONDICIONAMIENTO"];
+                const incrementos = ["requiere_plagas", "requiere_asbesto_cubierta", "requiere_asbesto_fachada", "requiere_asbesto_logia", "requiere_asbesto_redes", "riesgo_redes_grave_deterioro", "riesgo_estructura_grave_deterioro", "riesgo_escaleras_grave_deterioro", "riesgo_techumbre_grave_deterioro", "requiere_regularizacion", "eficiencia_energetica", "acondicionamiento_termico"];
                 incrementos.forEach(campo => {
                     const val = String(rawData[campo] || "").toLowerCase();
                     attr[campo] = (val === "sí" || val === "si") ? "☑" : "☐";
