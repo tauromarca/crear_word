@@ -1,10 +1,7 @@
 (function () {
     "use strict";
 
-    //const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
-    
     const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
-    
     const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
     function sanitize(str) {
@@ -14,41 +11,34 @@
         return temp.innerHTML;
     }
 
-    // Hallazgo 2.2: Obtención segura de datos
-    async function obtenerDatosArcGIS(objectid) {
-        // Intentamos detectar el nombre del campo ID (OBJECTID, fid, etc.)
-        // Usamos una consulta general para obtener el primer registro y ver cómo se llama su ID
-        // o simplemente usamos una consulta 'where' que es más estándar.
+    // Hallazgo 4.2: Autenticación y Autorización
+    async function obtenerDatosArcGIS(objectId, token) {
+        // Incluimos el token en la petición para resolver el error 499
+        let queryUrl = `${FEATURE_LAYER_URL}/query?objectIds=${objectId}&outFields=*&f=json`;
         
-        // Probamos con la sintaxis estándar de filtrado por ID
-        const queryUrl = `${FEATURE_LAYER_URL}/query?where=1%3D1&objectid=${objectid}&outFields=*&f=json`;
+        if (token) {
+            queryUrl += `&token=${token}`;
+        }
         
         try {
             const response = await fetch(queryUrl);
             const data = await response.json();
 
-            // LOG DE DIAGNÓSTICO (Revisar en Consola F12)
-            console.log("Respuesta de ArcGIS:", data);
-
             if (data.error) {
+                // Si el token expiró o es inválido
+                if (data.error.code === 498 || data.error.code === 499) {
+                    throw new Error("Su sesión ha expirado. Por favor, recargue Experience Builder.");
+                }
                 throw new Error(`ArcGIS Error ${data.error.code}: ${data.error.message}`);
             }
 
             if (!data.features || data.features.length === 0) {
-                // Si el ID no funciona, intentamos una búsqueda por campo OBJECTID explícito
-                const retryUrl = `${FEATURE_LAYER_URL}/query?where=objectid%3D${objectid}+OR+objectid%3D${objectid}+OR+fid%3D${objectId}&outFields=*&f=json`;
-                const retryResp = await fetch(retryUrl);
-                const retryData = await retryResp.json();
-                
-                if (!retryData.features || retryData.features.length === 0) {
-                    throw new Error("No se encontró el registro. Verifique que el ID sea correcto y que el servicio sea público.");
-                }
-                return retryData.features[0].attributes;
+                throw new Error("No tiene permisos para ver este registro o el ID es inválido.");
             }
             
             return data.features[0].attributes;
         } catch (error) {
-            throw new Error("Fallo de conexión a base de datos GIS: " + error.message);
+            throw new Error("Fallo de seguridad/acceso: " + error.message);
         }
     }
 
@@ -56,19 +46,20 @@
         const status = document.getElementById("status");
         const urlParams = new URLSearchParams(window.location.search);
         
-        // Capturamos el ID de cualquier variante posible en la URL
-        const oid = urlParams.get("objectIds") || urlParams.get("oid") || urlParams.get("objectid") || urlParams.get("OBJECTID");
+        const oid = urlParams.get("objectIds") || urlParams.get("oid") || urlParams.get("objectid");
+        const token = urlParams.get("token"); // Capturamos el token de la URL
 
         if (!oid) {
-            status.textContent = "Acceso Denegado: No se proporcionó un ID válido.";
+            status.textContent = "Acceso Denegado: No se proporcionó un ID de registro.";
             return;
         }
 
         try {
-            status.textContent = "🔐 Accediendo a datos seguros...";
-            const rawData = await obtenerDatosArcGIS(oid);
+            status.textContent = "🔐 Autenticando con el servidor GIS...";
+            const rawData = await obtenerDatosArcGIS(oid, token);
             
-            // Hallazgo 2.2: Limpiar URL inmediatamente
+            // Hallazgo 2.2: LIMPIEZA INMEDIATA DE LA URL
+            // Esto borra el Token y el ID de la vista del usuario y de los logs del navegador
             if (window.history.replaceState) {
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -82,9 +73,9 @@
                 attr[key] = sanitize(val);
             });
 
-            status.textContent = "📝 Generando documento...";
+            status.textContent = "📝 Generando documento oficial...";
             const templateResp = await fetch(PLANTILLA_URL);
-            if (!templateResp.ok) throw new Error("No se pudo cargar la plantilla local.");
+            if (!templateResp.ok) throw new Error("Plantilla institucional no accesible.");
             
             const content = await templateResp.arrayBuffer();
             const zip = new window.PizZip(content);
@@ -97,13 +88,13 @@
             doc.render();
 
             const docxBlob = doc.getZip().generate({ type: "blob" });
-            window.saveAs(docxBlob, `Ficha_Sede_Araucania_${oid}.docx`);
+            window.saveAs(docxBlob, `Ficha_Institucional_${oid}.docx`);
             
-            status.innerHTML = `<div style="color: green;">✔ Generado exitosamente.</div>
-                                <p style="font-size:0.8em;">Use Microsoft 365 para exportar a PDF.</p>`;
+            status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Documento generado exitosamente.</div>
+                                <p style="font-size:0.85em; color: #555;">Abra el archivo y use 'Exportar a PDF' en su Office 365.</p>`;
 
         } catch (error) {
-            console.error("Error en flujo seguro:", error);
+            console.error("Error de auditoría:", error);
             status.textContent = "❌ " + error.message;
         }
     }
