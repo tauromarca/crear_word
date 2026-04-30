@@ -90,25 +90,33 @@
                         val = new Date(val).toLocaleDateString("es-CL");
                     }
                     attr[key] = sanitize(val);
-                    attr[key.toUpperCase()] = sanitize(val); // Doble mapeo para el Word
+                    attr[key.toUpperCase()] = sanitize(val); 
                 });
 
-                // --- LÓGICA DE CHECKBOXES MEJORADA ---
-                const incrementos = ["requiere_plagas", "requiere_asbesto_cubierta", "requiere_asbesto_fachada", "requiere_asbesto_logia", "requiere_asbesto_redes", "riesgo_redes_grave_deterioro", "riesgo_estructura_grave_deterioro", "riesgo_escaleras_grave_deterioro", "riesgo_techumbre_grave_deterioro", "requiere_regularizacion", "eficiencia_energetica", "acondicionamiento_termico"];
-                
-                incrementos.forEach(campo => {
-                    // Obtenemos el valor original (el código "si") o el traducido ("Sí")
-                    const valorOriginal = rawData[campo];
-                    const valorTraducido = attr[campo];
+                // --- NUEVA LÓGICA DE MAPEO Y CHECKBOXES SI/NO ---
+                const mapaWordArcgis = {
+                    "PLAGAS": "requiere_plagas",
+                    "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta",
+                    "ASBELTO_FACHADA": "requiere_asbesto_fachada",
+                    "ASBELTO_LOGGIA": "requiere_asbesto_logia",
+                    "ASBELTO_REDES": "requiere_asbesto_redes",
+                    "RIESGO_REDES": "riesgo_redes_grave_deterioro",
+                    "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro",
+                    "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro",
+                    "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro",
+                    "REGULACION": "requiere_regularizacion",
+                    "EFICIENCIA_ENERGETICA": "eficiencia_energetica",
+                    "ACONDICIONAMIENTO": "acondicionamiento_termico"
+                };
+
+                Object.keys(mapaWordArcgis).forEach(tagWord => {
+                    const campoArcGIS = mapaWordArcgis[tagWord];
+                    const valorRaw = String(rawData[campoArcGIS] || "").toLowerCase();
                     
-                    const textoBusqueda = (String(valorOriginal || "") + String(valorTraducido || "")).toLowerCase();
+                    // Normalizamos para detectar "sí", "si", "Sí" o "Si"
+                    const esSi = valorRaw.includes("si") || valorRaw.includes("sí");
                     
-                    // Si el texto contiene "si" o "sí"
-                    const marcado = textoBusqueda.includes("si") || textoBusqueda.includes("sí");
-                    const icon = marcado ? "☑" : "☐";
-                    
-                    attr[campo] = icon;
-                    attr[campo.toUpperCase()] = icon; // Asegura que [[CAMPO]] en mayúsculas funcione
+                    attr[tagWord] = esSi ? "☑" : "☐";
                 });
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
@@ -128,8 +136,7 @@
                 const docxBlob = doc.getZip().generate({ type: "blob" });
                 window.saveAs(docxBlob, `Ficha_DTC_${oid}.docx`);
                 
-                status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Reporte generado.</div>
-                                    <p style="font-size:0.8em; color: #666;">Use Office 365 para exportar a PDF.</p>`;
+                status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Reporte generado.</div>`;
 
             } catch (error) {
                 console.error("Error en flujo seguro:", error);
