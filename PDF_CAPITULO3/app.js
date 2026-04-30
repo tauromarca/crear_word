@@ -1,76 +1,112 @@
 (function () {
     "use strict";
 
-    // Hallazgo 2.3: Whitelist de campos del Feature Layer
-    const FEATURE_LAYER_URL = "https://services3.arcgis.com/.../FeatureServer/0";
-    const ALLOWED_FIELDS = ["RUT_COPROPIEDAD", "PLAGAS", "PUNTAJE_AREA_VERDE", "INTERVENCION_AREA_VERDE"]; // ... etc
+    // =========================================================================
+    // CONFIGURACIÓN: URL de consulta segura (AKS -> ArcGIS)
+    // =========================================================================
+    //const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
 
-    // Hallazgo 2.1: Prevención XSS
+    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0"
+    const PLANTILLA_URL = "anexo2.docx";
+
+    // Hallazgo 2.1: Sanitización para evitar XSS
     function sanitize(str) {
-        if (!str) return "";
-        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        if (str === null || str === undefined) return "";
+        const temp = document.createElement('div');
+        temp.textContent = str;
+        return temp.innerHTML;
     }
 
+    // Hallazgo 2.2: Obtener datos reales desde el servidor (No confiar en la URL)
     async function obtenerDatosArcGIS(objectId) {
-        // Hallazgo 2.2: Se obtienen los datos sensibles por canal seguro (petición POST a ArcGIS)
-        // y no por la URL del navegador.
-        const response = await fetch(`${FEATURE_LAYER_URL}/query?objectIds=${objectId}&outFields=*&f=json`);
-        const data = await response.json();
-        return data.features[0].attributes;
+        // Se usa fetch para obtener la información completa y fidedigna
+        const queryUrl = `${FEATURE_LAYER_URL}/query?objectIds=${objectId}&outFields=*&f=json`;
+        
+        try {
+            const response = await fetch(queryUrl);
+            if (!response.ok) throw new Error("Servicio de datos no disponible.");
+            
+            const data = await response.json();
+            if (!data.features || data.features.length === 0) {
+                throw new Error("El registro no existe o no tiene permisos para verlo.");
+            }
+            return data.features[0].attributes;
+        } catch (error) {
+            throw new Error("Error de integridad de datos: " + error.message);
+        }
     }
 
     async function generar() {
         const status = document.getElementById("status");
         const urlParams = new URLSearchParams(window.location.search);
-        const oid = urlParams.get("oid"); // Solo recibimos el ID
+        
+        // Soporte para 'objectIds' (según tu URL), 'oid' o 'objectid'
+        const oid = urlParams.get("objectIds") || urlParams.get("oid") || urlParams.get("objectid");
 
         if (!oid) {
-            status.textContent = "❌ Acceso Denegado: ID de registro no proporcionado.";
+            status.textContent = "Acceso Denegado: Credencial de registro (ID) no detectada.";
             return;
         }
 
         try {
-            status.textContent = "🔍 Recuperando datos institucionales...";
+            status.textContent = "🔐 Validando y recuperando datos seguros...";
+            
+            // Hallazgo 2.2 y 2.3: Ignoramos los datos de la URL y bajamos los originales
             const rawData = await obtenerDatosArcGIS(oid);
             
-            // Hallazgo 2.3: Validación de esquema
+            // Hallazgo 2.2: LIMPIEZA INMEDIATA DE LA URL
+            // Borra el RUT y el ID de la barra de direcciones para que no queden en logs/historial
+            if (window.history.replaceState) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
             const attr = {};
             Object.keys(rawData).forEach(key => {
-                attr[key] = sanitize(rawData[key]);
+                let val = rawData[key];
+                // Formatear fechas de ArcGIS
+                if (typeof val === 'number' && val > 1000000000000) {
+                    val = new Date(val).toLocaleDateString("es-CL");
+                }
+                attr[key] = sanitize(val);
             });
 
-            // Hallazgo 2.2: Limpieza de URL (Privacy)
-            window.history.replaceState({}, "", window.location.pathname);
-
-            status.textContent = "📝 Generando documento...";
-            const response = await fetch("plantilla.docx");
-            const content = await response.arrayBuffer();
+            status.textContent = "📝 Generando documento oficial...";
+            const templateResp = await fetch(PLANTILLA_URL);
+            if (!templateResp.ok) throw new Error("Plantilla institucional no encontrada.");
+            
+            const content = await templateResp.arrayBuffer();
             const zip = new window.PizZip(content);
-            const doc = new window.docxtemplater(zip, { delimiters: { start: "[[", end: "]]" } });
+            const doc = new window.docxtemplater(zip, { 
+                delimiters: { start: "[[", end: "]]" },
+                paragraphLoop: true,
+                linebreaks: true 
+            });
 
             doc.setData(attr);
             doc.render();
 
             const docxBlob = doc.getZip().generate({ type: "blob" });
-            const fileName = `Ficha_Oficial_${oid}.docx`;
+            const fileName = `Ficha_Segura_${oid}.docx`;
 
-            // --- SOLUCIÓN PDF SIN PAGAR (Microsoft 365) ---
-            // 1. Descargamos el Word (el usuario ya lo tiene)
+            // Descarga local
             window.saveAs(docxBlob, fileName);
             
-            // 2. Instrucción al usuario (Hallazgo: Usar la suscripción existente)
+            // Mensaje de éxito con instrucciones PDF (M365)
             status.innerHTML = `
-                <div style="color: green">✔ Word generado exitosamente.</div>
-                <p style="font-size: 0.85em; color: #555; margin-top:10px;">
-                    Como usuario de <b>Microsoft 365</b>, para obtener el PDF oficial:<br>
-                    1. Abra el archivo descargado.<br>
-                    2. Vaya a <b>Archivo > Exportar > Crear documento PDF</b>.
-                </p>
+                <div style="color: #27ae60; font-size: 1.1em;">✔ Documento generado exitosamente.</div>
+                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #ddd;">
+                    <p style="margin-top:0"><b>Instrucciones PDF (M365):</b></p>
+                    <ol style="font-size: 0.85em; color: #333;">
+                        <li>Abra el archivo descargado en su Word institucional.</li>
+                        <li>Vaya al menú <b>Archivo</b>.</li>
+                        <li>Seleccione <b>Exportar</b> y luego <b>Crear documento PDF</b>.</li>
+                    </ol>
+                </div>
             `;
 
         } catch (error) {
-            console.error(error);
-            status.textContent = "❌ Error de seguridad o acceso a datos.";
+            console.error("Brecha detectada:", error);
+            status.textContent = "❌ Error: " + error.message;
         }
     }
 
