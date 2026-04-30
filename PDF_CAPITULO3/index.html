@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <!-- En el <head> de tu index.html añade esto -->
-    <script src="https://js.arcgis.com/4.29/"></script>
     <meta charset="UTF-8">
-    <title>Generador Ficha</title>
+    <title>Generador Institucional DTC</title>
+    <!-- Hallazgo 4.1: CSS en bloque style -->
     <style>
         body { font-family: sans-serif; background: #f4f4f4; text-align: center; padding-top: 50px; }
         .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 400px; margin: auto; }
@@ -14,13 +13,18 @@
 <body>
     <div class="card">
         <h3>Generador de Ficha</h3>
-        <div id="status">Iniciando...</div>
+        <div id="status">Iniciando componentes...</div>
     </div>
     
-    <!-- Librerías subidas a tu repositorio GitHub -->
+    <!-- 1. Librerías de utilidades -->
     <script src="pizzip.js"></script>
     <script src="docxtemplater.js"></script>
     <script src="FileSaver.min.js"></script>
+
+    <!-- 2. Cargador de ArcGIS (IDENTITY MANAGER) -->
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <!-- 3. Tu lógica de negocio -->
     <script src="app.js"></script>
 </body>
 </html>
