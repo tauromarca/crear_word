@@ -18,9 +18,9 @@
     }
 
     // Hallazgo 2.2: Obtener datos reales desde el servidor (No confiar en la URL)
-    async function obtenerDatosArcGIS(objectId) {
+    async function obtenerDatosArcGIS(objectid) {
         // Se usa fetch para obtener la información completa y fidedigna
-        const queryUrl = `${FEATURE_LAYER_URL}/query?objectIds=${objectId}&outFields=*&f=json`;
+        const queryUrl = `${FEATURE_LAYER_URL}/query?objectid=${objectid}&outFields=*&f=json`;
         
         try {
             const response = await fetch(queryUrl);
@@ -41,7 +41,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         
         // Soporte para 'objectIds' (según tu URL), 'oid' o 'objectid'
-        const oid = urlParams.get("objectIds") || urlParams.get("oid") || urlParams.get("objectid");
+        const oid = urlParams.get("objectid") || urlParams.get("oid") || urlParams.get("objectid");
 
         if (!oid) {
             status.textContent = "Acceso Denegado: Credencial de registro (ID) no detectada.";
