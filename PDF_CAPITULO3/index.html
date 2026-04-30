@@ -1,121 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Generar Ficha Capitulo 3</title>
-<script src="pizzip.js"></script>
-<script src="docxtemplater.js"></script>
-<script src="FileSaver.min.js"></script>
-<style>
-body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f4f4; text-align: center; padding-top: 40px; }
-.container { background: white; padding: 35px; border-radius: 10px; width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-#status { margin-top: 15px; font-weight: bold; color: #0078d4; }
-</style>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://v2.convertapi.com;">
+    <title>Generador Ficha DTC - Seguro</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f4f4; text-align: center; padding-top: 40px; }
+        .container { background: white; padding: 35px; border-radius: 10px; width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        #status { margin-top: 15px; font-weight: bold; color: #0078d4; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 10px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-<div class="container">
-  <h2>Generando Ficha DTC</h2>
-  <div id="status">Procesando parámetros...</div>
-</div>
+    <div class="container">
+        <h2>Generando Ficha DTC</h2>
+        <div id="loader" class="loader"></div>
+        <!-- Hallazgo 2.1: El estado se maneja vía textContent -->
+        <div id="status">Iniciando sistema seguro...</div>
+    </div>
 
-<script>
-const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
-
-function getAllParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const params = {};
-  for (const [key, value] of urlParams) {
-    if (!isNaN(value) && value.length > 11 && !value.includes('.')) {
-       params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
-    } else {
-       params[key] = value;
-    }
-  }
-  return params;
-}
-
-// ================= 🔥 NUEVA FUNCIÓN: ORDENAR TABLA IV =================
-function generarListaPriorizada(attr) {
-  // Mapeo de las partidas con sus respectivos campos de puntaje e intervención
-  // Ajusta los nombres de los campos (ej: INTERVENCION_A) según vengan de ArcGIS
-  let partidas = [
-    { nombre: "A. Áreas Verdes y Equipamiento", p: attr.PUNTAJE_AREA_VERDE, intervencion: attr.INTERVENCION_AREA_VERDE},
-    { nombre: "B. Cierres Perimetrales", p: attr.PUNTAJE_CIERRES, intervencion: attr.INTERVENCION_CIERRES},
-    { nombre: "C. Techumbre", p: attr.PUNTAJE_TECHUMBRE, intervencion: attr.INTERVENCION_TECHUMBRE},
-    { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: attr.PUNTAJE_ASCENSORES, intervencion: attr.INTERVENCION_ASCENSORES},
-    { nombre: "E. Fachadas y/o Muros", p: attr.PUNTAJE_FACHADA, intervencion: attr.INTERVENCION_FACHADA},
-    { nombre: "F. Sistemas de Iluminación", p: attr.PUNTAJE_ILUMINACION, intervencion: attr.INTERVENCION_ILUMINACION},
-    { nombre: "G. Redes de Servicio", p: attr.PUNTAJE_REDES, intervencion: attr.INTERVENCION_REDES},
-    { nombre: "K. Accesibilidad Universal", p: attr.PUNTAJE_ACCESIBILIDAD, intervencion: attr.INTERVENCION_ACCESIBILIDAD}
-  ];
-
-  // Convertir puntajes a números y ordenar de mayor a menor
-  partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
-
-  // Formatear el puntaje para que no tenga tantos decimales en el Word (opcional)
-  partidas.forEach(item => {
-    if(!isNaN(item.p)) {
-        item.p = parseFloat(item.p).toFixed(4); // 4 decimales
-    }
-  });
-
-  return partidas;
-}
-
-function procesarIncrementosSiNo(attr) {
-  const camposIncrementos = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION", "EFICIENCIA_ENERGETICA", "ACONDICIONAMIENTO"];
-  camposIncrementos.forEach(campo => {
-    if (attr[campo] && attr[campo].toString().toLowerCase() === "sí") { attr[campo] = "☑"; } 
-    else { attr[campo] = "☐"; }
-  });
-  return attr;
-}
-
-function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
-  opciones.forEach((opt, i) => { attr[`${prefijo}${i+1}`] = "☐"; });
-  const valor = attr[campo];
-  opciones.forEach((opt, i) => { if (valor == opt.code || valor == opt.label) { attr[`${prefijo}${i+1}`] = "☑"; } });
-  return attr;
-}
-
-async function generar() {
-  const status = document.getElementById("status");
-  try {
-    let attr = getAllParams();
-    if (Object.keys(attr).length === 0) { status.innerHTML = "❌ Error: Sin datos"; return; }
-
-    // 1. Procesar Lógica de Checkboxes
-    attr = procesarIncrementosSiNo(attr);
-    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [{code: 1}, {code: 2}, {code: 3}], "v");
-
-    // 2. 🔥 GENERAR LA LISTA ORDENADA PARA LA TABLA IV
-    attr.tabla_priorizada = generarListaPriorizada(attr);
-
-    // 3. Cargar Plantilla
-    status.innerHTML = "📄 Generando Word...";
-    const response = await fetch(PLANTILLA_URL);
-    const content = await response.arrayBuffer();
-    const zip = new PizZip(content);
-
-    const doc = new window.docxtemplater(zip, {
-      delimiters: { start: "[[", end: "]]" },
-      paragraphLoop: true,
-      linebreaks: true
-    });
-
-    doc.setData(attr);
-    doc.render();
-
-    const blob = doc.getZip().generate({ type: "blob" });
-    saveAs(blob, `Ficha_Capitulo3_${attr.RUT_COPROPIEDAD || 'DTC'}.docx`);
-    status.innerHTML = "✅ ¡Éxito!";
-
-  } catch (error) {
-    console.error(error);
-    status.innerHTML = "❌ Error en el proceso";
-  }
-}
-window.onload = generar;
-</script>
+    <!-- Librerías locales (Hallazgo 3.1) -->
+    <script src="pizzip.js"></script>
+    <script src="docxtemplater.js"></script>
+    <script src="FileSaver.min.js"></script>
+    <!-- Librería para PDF (Opcional si usas ConvertAPI JS) -->
+    <script src="https://unpkg.com/convertapi-js/lib/convertapi.js"></script>
+    <!-- Lógica externalizada (Hallazgo 4.1) -->
+    <script src="app.js"></script>
 </body>
 </html>
