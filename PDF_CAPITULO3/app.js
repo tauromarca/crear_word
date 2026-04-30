@@ -1,8 +1,11 @@
 (function () {
     "use strict";
 
-    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
-    const PLANTILLA_URL = "anexo2.docx";
+    //const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
+    
+    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
+    
+    const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
     function sanitize(str) {
         if (str === null || str === undefined) return "";
