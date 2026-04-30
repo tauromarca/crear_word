@@ -73,60 +73,72 @@
         });
     }
 
-    async function generar() {
-        const status = document.getElementById("status");
-        const loader = document.getElementById("loader");
-        loader.style.display = "block";
-        
-        try {
-            const attr = getSecureParams();
-            if (Object.keys(attr).length === 0) {
-                status.textContent = "❌ Error: Datos insuficientes o no autorizados.";
-                loader.style.display = "none";
-                return;
-            }
-
-            procesarIncrementosSiNo(attr);
-            attr.tabla_priorizada = generarListaPriorizada(attr);
-
-            status.textContent = "📝 Generando documento base...";
-            const response = await fetch(PLANTILLA_URL);
-            const content = await response.arrayBuffer();
-            const zip = new window.PizZip(content);
-            const doc = new window.docxtemplater(zip, {
-                delimiters: { start: "[[", end: "]]" },
-                paragraphLoop: true,
-                linebreaks: true
-            });
-
-            doc.setData(attr);
-            doc.render();
-
-            const docxBlob = doc.getZip().generate({ type: "blob" });
-            const fileName = `Ficha_DTC_${attr.RUT_COPROPIEDAD || 'Generica'}`;
-
-            // --- CONVERSIÓN A PDF ---
-            status.textContent = "🚀 Convirtiendo a PDF...";
-            
-            // Usando ConvertAPI (Requiere conexión permitida en CSP)
-            const convertApi = window.ConvertApi.auth({ secret: CONVERT_API_SECRET });
-            const params = convertApi.createParams();
-            params.add('File', docxBlob, `${fileName}.docx`);
-            
-            const result = await convertApi.convert('docx', 'pdf', params);
-            const pdfBlob = await fetch(result.files[0].Url).then(r => r.blob());
-
-            window.saveAs(pdfBlob, `${fileName}.pdf`);
-
-            status.textContent = "✅ ¡PDF Generado con éxito!";
+  async function generar() {
+    const status = document.getElementById("status");
+    const loader = document.getElementById("loader");
+    loader.style.display = "block";
+    
+    try {
+        const attr = getSecureParams();
+        if (Object.keys(attr).length === 0) {
+            status.textContent = "❌ Error: Datos insuficientes.";
             loader.style.display = "none";
-
-        } catch (error) {
-            console.error("Brecha de proceso:", error);
-            status.textContent = "❌ Error: Fallo en la conversión a PDF.";
-            loader.style.display = "none";
+            return;
         }
-    }
 
+        // 1. Validar si la librería ConvertAPI cargó correctamente
+        // Hallazgo 3.1: Verificación de disponibilidad de dependencias
+        if (typeof window.ConvertApi === 'undefined') {
+            throw new Error("Librería de conversión no disponible en el servidor.");
+        }
+
+        procesarIncrementosSiNo(attr);
+        attr.tabla_priorizada = generarListaPriorizada(attr);
+
+        status.textContent = "📝 Generando documento base...";
+        const response = await fetch(PLANTILLA_URL);
+        const content = await response.arrayBuffer();
+        const zip = new window.PizZip(content);
+        const doc = new window.docxtemplater(zip, {
+            delimiters: { start: "[[", end: "]]" },
+            paragraphLoop: true,
+            linebreaks: true
+        });
+
+        doc.setData(attr);
+        doc.render();
+
+        const docxBlob = doc.getZip().generate({ type: "blob" });
+        const fileName = `Ficha_DTC_${attr.RUT_COPROPIEDAD || 'Generica'}`;
+
+        // 2. CONFIGURACIÓN DE CONVERSIÓN (HALLAZGO 4.2: Uso de Secret seguro)
+        status.textContent = "🚀 Convirtiendo a PDF...";
+        
+        // Inicializar ConvertApi (usando el objeto global correcto)
+        const convertApi = window.ConvertApi.auth({ secret: CONVERT_API_SECRET });
+        const params = convertApi.createParams();
+        params.add('File', docxBlob, `${fileName}.docx`);
+        
+        // Ejecutar conversión
+        const result = await convertApi.convert('docx', 'pdf', params);
+        
+        // 3. Obtener el archivo resultante
+        const pdfUrl = result.files[0].Url;
+        const pdfResponse = await fetch(pdfUrl);
+        const pdfBlob = await pdfResponse.blob();
+
+        // 4. Descarga segura
+        window.saveAs(pdfBlob, `${fileName}.pdf`);
+
+        status.textContent = "✅ ¡PDF Generado con éxito!";
+        loader.style.display = "none";
+
+    } catch (error) {
+        console.error("Error en proceso seguro:", error);
+        // Hallazgo 2.1: No mostrar detalles técnicos al usuario final por seguridad
+        status.textContent = "❌ Error: " + error.message;
+        loader.style.display = "none";
+    }
+}
     window.onload = generar;
 })();
