@@ -1,100 +1,71 @@
 (function () {
     "use strict";
 
-    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/Pauta_de_Verficaci%C3%B3n_Vivienda_Araucania_consulta_3/FeatureServer/0";
-    const PLANTILLA_URL = "anexo2.docx";
+    // Necesitamos cargar el módulo de Identidad de ArcGIS
+    require(["esri/identity/IdentityManager", "esri/request"], function(esriId, esriRequest) {
 
-    // Hallazgo 2.1: Sanitización básica
-    function sanitize(str) {
-        if (str === null || str === undefined) return "";
-        const temp = document.createElement('div');
-        temp.textContent = str;
-        return temp.innerHTML;
-    }
+        const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
+        const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
-    async function obtenerDatosArcGIS(objectId, token) {
-        // Consultamos con el token recibido para evitar el Error 499
-        const queryUrl = `${FEATURE_LAYER_URL}/query?objectIds=${objectId}&outFields=*&f=json&token=${token}`;
-        
-        try {
-            const response = await fetch(queryUrl);
-            const data = await response.json();
 
-            if (data.error) {
-                if (data.error.code === 498 || data.error.code === 499) {
-                    throw new Error("Su sesión ha expirado o no tiene permisos. Por favor, recargue el mapa.");
+        async function generar() {
+            const status = document.getElementById("status");
+            const urlParams = new URLSearchParams(window.location.search);
+            const oid = urlParams.get("objectIds");
+
+            if (!oid) {
+                status.textContent = "Error: ID no recibido.";
+                return;
+            }
+
+            try {
+                status.textContent = "🔐 Verificando credenciales institucionales...";
+
+                // SOLUCIÓN AL ERROR 499: 
+                // esriRequest detecta si la capa es privada y pide el token automáticamente
+                // al estar logueado en Experience Builder, lo obtiene sin pedir contraseña.
+                const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
+                    query: {
+                        objectIds: oid,
+                        outFields: "*",
+                        f: "json"
+                    },
+                    responseType: "json"
+                });
+
+                const rawData = response.data.features[0].attributes;
+
+                // Limpiar URL (Hallazgo 2.2)
+                if (window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                throw new Error(`Error GIS: ${data.error.message}`);
+
+                // --- EL RESTO DE TU LÓGICA DE GENERACIÓN WORD ---
+                status.textContent = "📝 Generando documento...";
+                
+                // (Aquí sigues con tu fetch de plantilla y docxtemplater...)
+                const templateResp = await fetch(PLANTILLA_URL);
+                const content = await templateResp.arrayBuffer();
+                const zip = new window.PizZip(content);
+                const doc = new window.docxtemplater(zip, { 
+                    delimiters: { start: "[[", end: "]]" },
+                    paragraphLoop: true, linebreaks: true 
+                });
+
+                doc.setData(rawData); // O tu función de sanitización
+                doc.render();
+
+                const docxBlob = doc.getZip().generate({ type: "blob" });
+                window.saveAs(docxBlob, `Ficha_${oid}.docx`);
+                
+                status.innerHTML = "✔ Generado con éxito.";
+
+            } catch (error) {
+                console.error("Error de acceso:", error);
+                status.textContent = "❌ No tiene permisos para acceder a estos datos.";
             }
-
-            if (!data.features || data.features.length === 0) {
-                throw new Error("No se encontró el registro solicitado.");
-            }
-            return data.features[0].attributes;
-        } catch (error) {
-            throw new Error(error.message);
-        }
-    }
-
-    async function generar() {
-        const status = document.getElementById("status");
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        const oid = urlParams.get("objectIds");
-        const token = urlParams.get("token");
-
-        if (!oid || !token) {
-            status.textContent = "Error: Falta ID o Token de seguridad.";
-            return;
         }
 
-        try {
-            status.textContent = "🔐 Accediendo a datos protegidos...";
-            
-            // 1. Obtener datos con el token
-            const rawData = await obtenerDatosArcGIS(oid, token);
-            
-            // 2. Hallazgo 2.2: LIMPIEZA DE URL INMEDIATA (Seguridad)
-            // Borra el token y el ID de la barra de direcciones para que no se vea ni quede en el historial
-            if (window.history.replaceState) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            const attr = {};
-            Object.keys(rawData).forEach(key => {
-                let val = rawData[key];
-                // Formatear fechas de ArcGIS
-                if (typeof val === 'number' && val > 1000000000000) {
-                    val = new Date(val).toLocaleDateString("es-CL");
-                }
-                attr[key] = sanitize(val);
-            });
-
-            // 3. Generar Word
-            status.textContent = "📝 Generando documento...";
-            const templateResp = await fetch(PLANTILLA_URL);
-            const content = await templateResp.arrayBuffer();
-            const zip = new window.PizZip(content);
-            const doc = new window.docxtemplater(zip, { 
-                delimiters: { start: "[[", end: "]]" },
-                paragraphLoop: true, linebreaks: true 
-            });
-
-            doc.setData(attr);
-            doc.render();
-
-            // 4. Descargar
-            const docxBlob = doc.getZip().generate({ type: "blob" });
-            window.saveAs(docxBlob, `Ficha_Copropiedad_${oid}.docx`);
-            
-            status.innerHTML = `<div style="color: #27ae60;">✔ Ficha generada con éxito.</div>
-                                <p style="font-size:0.8em; color: #666;">Abra el archivo y use 'Exportar a PDF' en su Word.</p>`;
-
-        } catch (error) {
-            console.error("Error:", error);
-            status.textContent = "❌ " + error.message;
-        }
-    }
-
-    window.onload = generar;
+        window.onload = generar;
+    });
 })();
