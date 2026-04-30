@@ -11,7 +11,7 @@
         async function generar() {
             const status = document.getElementById("status");
             const urlParams = new URLSearchParams(window.location.search);
-            const oid = urlParams.get("objectIds");
+            const oid = urlParams.get("objectid");
 
             if (!oid) {
                 status.textContent = "Error: ID no recibido.";
@@ -26,7 +26,7 @@
                 // al estar logueado en Experience Builder, lo obtiene sin pedir contraseña.
                 const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
                     query: {
-                        objectIds: oid,
+                        objectid: objectid,
                         outFields: "*",
                         f: "json"
                     },
