@@ -161,7 +161,7 @@
                 if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
 
                 // 3. Lógica de Checks ☑
-                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" , "EFICIENCIA_ENERGETICA": "eficiencia_energetica", "acondicionamiento": "acondicionamiento_termico"};
+                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" , "EFICIENCIA_ENERGETICA": "eficiencia_energetica", "ACONDICIONAMIENTO": "acondicionamiento_termico"};
                 Object.keys(mapaChecks).forEach(tag => {
                     const valorRaw = String(getVal(rawData, mapaChecks[tag])).toLowerCase();
                     attr[tag] = (valorRaw.includes("si") || valorRaw.includes("sí")) ? "☑" : "☐";
