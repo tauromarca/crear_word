@@ -9,11 +9,12 @@
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
         // ============================================================
-        // CONFIGURACIÓN
+        // CONFIGURACIÓN CENTRALIZADA
         // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
         
+        // REEMPLAZAR CON TUS CREDENCIALES REALES
         const CONVERT_API_SECRET = "TU_SECRET_CONVERTAPI"; 
         const APP_ID_ARCGIS = "TU_APP_ID_OAUTH2"; 
 
@@ -54,12 +55,12 @@
         };
 
         // ============================================================
-        // 2. EXPORTACIÓN DE MAPA Y DESCARGA PNG
+        // 2. EXPORTACIÓN DE MAPA (PNG) Y DESCARGA
         // ============================================================
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.5);
+                const ext = poly.extent.expand(2.5); // Margen del mapa
                 
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
@@ -67,10 +68,9 @@
                 const response = await esriRequest(`${mapServerUrl}/export`, {
                     query: {
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                        bboxSR: ext.spatialReference.wkid || 102100,
-                        imageSR: ext.spatialReference.wkid || 102100,
+                        bboxSR: JSON.stringify(ext.spatialReference),
                         layers: "show:0",
-                        layerDefs: JSON.stringify({ "0": `objectid = ${oid}` }),
+                        layerDefs: JSON.stringify({"0": `objectid = ${oid}`}), // Corrección Error 400
                         size: "1200,900",
                         format: "png32",
                         transparent: "true",
@@ -82,20 +82,19 @@
 
                 const uint8Array = new Uint8Array(response.data);
 
-                // --- NUEVO: BAJAR LA IMAGEN PNG POR SEPARADO ---
+                // ACCIÓN: BAJAR PNG POR SEPARADO
                 const imageBlob = new Blob([uint8Array], { type: "image/png" });
-                window.saveAs(imageBlob, `Mapa_Poligono_ID_${oid}.png`);
-                console.log("📥 PNG del mapa descargado por separado.");
+                window.saveAs(imageBlob, `Plano_Poligono_ID_${oid}.png`);
 
                 return uint8Array;
             } catch (e) {
-                console.error("❌ Fallo en exportación de mapa:", e);
+                console.error("❌ Error exportando mapa:", e);
                 return null;
             }
         }
 
         // ============================================================
-        // 3. PROCESAMIENTO
+        // 3. UTILIDADES Y PROCESAMIENTO
         // ============================================================
         function sanitize(str) {
             if (str === null || str === undefined) return "";
@@ -124,6 +123,9 @@
             }));
         }
 
+        // ============================================================
+        // 4. PROCESO DE GENERACIÓN
+        // ============================================================
         async function generar() {
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
@@ -148,11 +150,11 @@
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Obtener y Descargar PNG del Mapa
-                let mapaGis = null;
+                // 1. Obtener Mapa y Bajarlo como PNG
+                let mapaBuffer = null;
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando y bajando imagen PNG...";
-                    mapaGis = await obtenerImagenMapa(oid, feature.geometry);
+                    status.textContent = "🗺️ Generando y descargando mapa...";
+                    mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
                 // 2. Procesar Dominios
@@ -166,9 +168,10 @@
                     });
                 }
 
+                // Hallazgo 2.2: Limpieza de URL
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
-                // 3. Atributos
+                // 3. Mapeo de Atributos
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
@@ -179,9 +182,10 @@
                     attr[key.toUpperCase()] = sVal;
                 });
 
-                if (mapaGis) attr["MAPA_POLIGONO"] = mapaGis;
+                // Inyectar Mapa en Word
+                if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
 
-                // 4. Checks
+                // 4. Lógica de Checks ☑
                 const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
                 Object.keys(mapaChecks).forEach(tag => {
                     const valorRaw = String(rawData[mapaChecks[tag]] || "").toLowerCase();
@@ -190,7 +194,7 @@
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 5. Word
+                // 5. RENDERIZADO WORD
                 status.textContent = "📝 Generando reporte Word...";
                 const templateResp = await fetch(PLANTILLA_URL);
                 const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
@@ -204,10 +208,10 @@
                 doc.setData(attr);
                 doc.render();
 
-                // 6. PDF
+                // 6. PDF AUTOMÁTICO
                 status.textContent = "🚀 Convirtiendo a PDF oficial...";
                 const docxBlob = doc.getZip().generate({ type: "blob" });
-                const fileName = `Ficha_Priorizacion_${oid}`;
+                const fileName = `Reporte_DTC_${oid}`;
                 
                 const conv = window.ConvertApi.auth({ secret: CONVERT_API_SECRET });
                 const params = conv.createParams();
@@ -217,7 +221,7 @@
                 const pdfBlob = await fetch(result.files[0].Url).then(r => r.blob());
                 window.saveAs(pdfBlob, `${fileName}.pdf`);
                 
-                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso completado exitosamente.</div>`;
+                status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Proceso completado exitosamente.</div>`;
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
