@@ -18,9 +18,7 @@
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
-        // ============================================================
         // 1. MÓDULO DE IMAGEN v4
-        // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
         MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
         MyImageModule.prototype.parse = function(type, data) {
@@ -44,16 +42,6 @@
             return { value: `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${numId}" name="Pic"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>` };
         };
 
-        // ============================================================
-        // 2. UTILIDADES
-        // ============================================================
-        function sanitize(str) {
-            if (str === null || str === undefined) return "";
-            const temp = document.createElement('div');
-            temp.textContent = str;
-            return temp.innerHTML;
-        }
-
         function getVal(obj, fieldName) {
             if (!obj) return "";
             const key = Object.keys(obj).find(k => k.toLowerCase() === fieldName.toLowerCase());
@@ -61,37 +49,36 @@
         }
 
         // ============================================================
-        // 3. EXPORTACIÓN DE MAPA (PNG) Y DESCARGA DIRECTA
+        // 2. EXPORTACIÓN DE MAPA (CORRECCIÓN ERROR 400)
         // ============================================================
         async function obtenerYDescargarMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
                 const ext = poly.extent.expand(2.5);
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
-                
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
-                
+
                 const queryParams = {
-                    bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                    bboxSR: JSON.stringify(ext.spatialReference),
-                    imageSR: JSON.stringify(ext.spatialReference),
+                    bbox: ext.xmin + "," + ext.ymin + "," + ext.xmax + "," + ext.ymax,
+                    bboxSR: ext.spatialReference.wkid || 102100,
+                    imageSR: ext.spatialReference.wkid || 102100,
                     layers: "show:0",
-                    layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
-                    size: "1200,900",
+                    layerDefs: JSON.stringify({ "0": "objectid = " + oid }),
+                    size: "1000,750",
                     format: "png32",
                     transparent: "true",
                     f: "image",
                     token: credential.token
                 };
 
-                const response = await esriRequest(`${mapServerUrl}/export`, {
+                const response = await esriRequest(mapServerUrl + "/export", {
                     query: queryParams,
                     responseType: "array-buffer"
                 });
 
                 const uint8Array = new Uint8Array(response.data);
                 
-                // --- ACCIÓN 1: DESCARGAR PNG USANDO window.saveAs ---
+                // --- ACCIÓN: DESCARGAR PNG USANDO window.saveAs ---
                 const imageBlob = new Blob([uint8Array], { type: "image/png" });
                 window.saveAs(imageBlob, `Mapa_Poligono_${oid}.png`);
                 
@@ -116,15 +103,10 @@
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre, 
-                p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", 
-                int: sanitize(item.int)
+                nombre: item.nombre, p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", int: (item.int || "")
             }));
         }
 
-        // ============================================================
-        // 4. GENERACIÓN PRINCIPAL
-        // ============================================================
         async function generar() {
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
@@ -135,25 +117,28 @@
             if (loader) loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Accediendo a datos institucionales...";
+                status.textContent = "🔐 Accediendo a ArcGIS...";
 
                 const [serviceMeta, response] = await Promise.all([
                     esriRequest(FEATURE_LAYER_URL, { query: { f: "json" }, responseType: "json" }),
-                    esriRequest(`${FEATURE_LAYER_URL}/query`, { query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" }, responseType: "json" })
+                    esriRequest(`${FEATURE_LAYER_URL}/query`, {
+                        query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" },
+                        responseType: "json"
+                    })
                 ]);
 
                 if (!response.data.features.length) throw new Error("Registro no encontrado.");
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Obtener y Bajar Mapa PNG
+                // 1. Obtener y Descargar Mapa PNG
                 let mapaBuffer = null;
                 if (feature.geometry) {
                     status.textContent = "🗺️ Bajando imagen del mapa...";
                     mapaBuffer = await obtenerYDescargarMapa(oid, feature.geometry);
                 }
 
-                // 2. Procesar Dominios
+                // 2. Procesar Dominios y Atributos
                 const domainMap = {};
                 serviceMeta.data.fields.forEach(f => {
                     if (f.domain?.codedValues) {
@@ -164,56 +149,50 @@
 
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
-                // 3. Mapeo de Atributos (Minúsculas y MAYÚSCULAS)
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
-                    const sVal = sanitize(val);
-                    attr[key.toLowerCase()] = sVal;
-                    attr[key.toUpperCase()] = sVal;
+                    attr[key.toLowerCase()] = (val === null || val === undefined) ? "" : val;
+                    attr[key.toUpperCase()] = attr[key.toLowerCase()];
                 });
 
-                if (mapaBuffer) {
-                    attr["MAPA_POLIGONO"] = mapaBuffer;
-                    attr["mapa_poligono"] = mapaBuffer;
-                }
+                if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
 
-                // 4. Lógica de Checks ☑
+                // 3. Lógica de Checks ☑
                 const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
                 Object.keys(mapaChecks).forEach(tag => {
-                    const valArcGIS = String(getVal(rawData, mapaChecks[tag])).toLowerCase();
-                    const check = (valArcGIS.includes("si") || valArcGIS.includes("sí")) ? "☑" : "☐";
-                    attr[tag] = check;
-                    attr[tag.toUpperCase()] = check;
+                    const valorRaw = String(getVal(rawData, mapaChecks[tag])).toLowerCase();
+                    attr[tag] = (valorRaw.includes("si") || valorRaw.includes("sí")) ? "☑" : "☐";
                 });
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 5. GENERAR Y BAJAR WORD USANDO window.saveAs
+                // 4. GENERAR Y BAJAR WORD USANDO window.saveAs
                 status.textContent = "📝 Generando reporte Word...";
-                const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
-                const doc = new window.docxtemplater(new window.PizZip(template), {
+                const templateResp = await fetch(PLANTILLA_URL);
+                const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
                     delimiters: { start: "[[", end: "]]" },
-                    modules: [new MyImageModule({ getSize: (i, v, n) => n.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200] })],
+                    modules: [new MyImageModule({
+                        getSize: (img, val, tagName) => tagName.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
+                    })],
                     nullGetter: () => ""
                 });
 
                 doc.setData(attr);
                 doc.render();
 
-                const out = doc.getZip().generate({ type: "blob" });
-                
-                // --- ACCIÓN 2: DESCARGAR WORD USANDO window.saveAs ---
-                window.saveAs(out, `Ficha_Priorizacion_${oid}.docx`);
-                
-                status.textContent = "✅ ¡Archivos generados con éxito!";
-                if (loader) loader.style.display = "none";
+                // Esperamos un instante antes de bajar el segundo archivo para evitar bloqueos del navegador
+                setTimeout(() => {
+                    window.saveAs(doc.getZip().generate({ type: "blob" }), `Reporte_DTC_${oid}.docx`);
+                    status.textContent = "✅ ¡Archivos generados con éxito!";
+                    if (loader) loader.style.display = "none";
+                }, 1000);
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ Error: " + error.message;
+                status.textContent = "❌ " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
