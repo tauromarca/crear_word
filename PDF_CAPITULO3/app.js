@@ -80,6 +80,12 @@
                 return uint8Array;
             } catch (e) { console.error("❌ Error exportando mapa:", e); return null; }
         }
+        function sanitize(str) {
+            if (str === null || str === undefined) return "";
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
 
         function prepararTablaPriorizada(rawData, domainMap) {
             const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
