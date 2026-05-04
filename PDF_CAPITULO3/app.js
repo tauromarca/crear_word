@@ -157,7 +157,7 @@
                 }
 
                 // Lógica de Checks Sí/No
-                const checks = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION"];
+                const checks = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION","EFICIENCIA_ENERGETICA","ACONDICIONAMIENTO"];
                 checks.forEach(tag => {
                     const v = String(attr[tag] || "").toLowerCase();
                     attr[tag] = (v.includes("si") || v.includes("sí")) ? "☑" : "☐";
