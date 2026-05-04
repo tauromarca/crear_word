@@ -11,7 +11,7 @@
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
         // ============================================================
-        // 1. MÓDULO DE IMAGEN INTEGRADO
+        // 1. MÓDULO DE IMAGEN INTEGRADO (v4 Compatible)
         // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
         MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
@@ -27,8 +27,6 @@
         MyImageModule.prototype.render = function(part, options) {
             if (part.type !== "placeholder") return null;
             const tagValue = options.scopeManager.getValue(part.value);
-            
-            // Si el valor es nulo o no es un buffer, no renderizar como imagen
             if (!tagValue || typeof tagValue === 'string') return { value: "" };
 
             const numId = Math.floor(Math.random() * 1000000);
@@ -51,14 +49,17 @@
         };
 
         // ============================================================
-        // 2. FUNCIÓN DE EXPORTACIÓN
+        // 2. FUNCIÓN DE EXPORTACIÓN DE MAPA CORREGIDA
         // ============================================================
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.0); 
+                const ext = poly.extent.expand(2.2); 
                 const mapServerUrl = FEATURE_LAYER_URL.replace("FeatureServer", "MapServer");
-                const credential = await esriId.checkSignInStatus("https://www.arcgis.com/sharing");
+                
+                // Forzamos la obtención del token
+                const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
+                const token = credential ? credential.token : "";
 
                 const response = await esriRequest(`${mapServerUrl}/export`, {
                     query: {
@@ -68,15 +69,15 @@
                         layerDefs: `{"0":"objectid=${oid}"}`,
                         size: "1000,800",
                         format: "png32",
+                        transparent: "true",
                         f: "image",
-                        token: credential ? credential.token : ""
+                        token: token
                     },
                     responseType: "array-buffer"
                 });
-                console.log("🗺️ Mapa generado con éxito");
                 return new Uint8Array(response.data);
             } catch (e) {
-                console.error("❌ Error exportando mapa:", e);
+                console.error("❌ Fallo en exportación de mapa:", e);
                 return null;
             }
         }
@@ -102,10 +103,12 @@
                     })
                 ]);
 
+                if (!response.data.features.length) throw new Error("Registro no encontrado.");
+                
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // A. Primero procesamos todos los textos
+                // A. Procesar Textos y Dominios
                 const attr = {};
                 const domainMap = {};
                 if (serviceMeta.data.fields) {
@@ -121,38 +124,32 @@
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1000000000000) val = new Date(val).toLocaleDateString("es-CL");
-                    
                     attr[key.toUpperCase()] = (val === null || val === undefined) ? "" : val;
                 });
 
-                // B. Generar y asignar el mapa AL FINAL (Para que no sea sobreescrito)
+                // B. Obtener Mapa
                 if (feature.geometry) {
                     status.textContent = "🗺️ Generando mapa...";
                     const mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
-                    if (mapaBuffer) {
-                        attr["MAPA_POLIGONO"] = mapaBuffer;
-                        console.log("📸 Buffer de mapa inyectado en attr['MAPA_POLIGONO']");
-                    }
+                    if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
                 }
 
-                // C. Lógica de Checks
-                const checks = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION","EFICIENCIA_ENERGETICA","ACONDICIONAMIENTO"];
+                // C. Checks
+                const checks = ["PLAGAS", "ASBELTO_CUBIERTA", "ASBELTO_FACHADA", "ASBELTO_LOGGIA", "ASBELTO_REDES", "RIESGO_REDES", "RIESGO_ESTRUCTURA", "RIESGO_ESCALERAS", "RIESGO_TECHUMBRE", "REGULACION"];
                 checks.forEach(tag => {
                     const v = String(attr[tag] || "").toLowerCase();
                     attr[tag] = (v.includes("si") || v.includes("sí")) ? "☑" : "☐";
                 });
 
-                // D. Generar Word
-                status.textContent = "📝 Renderizando Word...";
+                // D. RENDERIZADO WORD (v4 Constructor Correcto)
+                status.textContent = "📝 Procesando documento...";
                 const templateResp = await fetch(PLANTILLA_URL);
                 const zip = new window.PizZip(await templateResp.arrayBuffer());
                 
+                // LAS OPCIONES VAN DENTRO DEL CONSTRUCTOR
                 const doc = new window.docxtemplater(zip, { 
                     delimiters: { start: "[[", end: "]]" },
-                    nullGetter: () => "" 
-                });
-
-                doc.setOptions({
+                    nullGetter: () => "",
                     modules: [new MyImageModule({
                         getSize: (img, val, tagName) => tagName === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
                     })]
@@ -162,7 +159,7 @@
                 doc.render();
 
                 window.saveAs(doc.getZip().generate({ type: "blob" }), `Ficha_DTC_${oid}.docx`);
-                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso completado.</div>`;
+                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso finalizado.</div>`;
 
             } catch (error) {
                 console.error(error);
