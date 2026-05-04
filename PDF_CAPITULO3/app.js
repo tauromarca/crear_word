@@ -1,7 +1,6 @@
 (function () {
     "use strict";
 
-    // Hallazgo 3.1: Cargamos los módulos de ArcGIS necesarios
     require([
         "esri/request",
         "esri/identity/IdentityManager",
@@ -14,22 +13,17 @@
         // ============================================================
         // 1. MÓDULO DE IMAGEN INTEGRADO (v4 Compatible)
         // ============================================================
-        function MyImageModule(options) { 
-            this.options = options || {}; 
-        }
-        
+        function MyImageModule(options) { this.options = options || {}; }
         MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
             this.docxtemplater = docxtemplater;
             return options;
         };
-
         MyImageModule.prototype.parse = function(type, data) {
             if (type === "tag" && data.tag.charAt(0) === "%") {
                 return { type: "placeholder", value: data.tag.substr(1) };
             }
             return null;
         };
-
         MyImageModule.prototype.render = function(part, options) {
             if (part.type !== "placeholder") return null;
             const tagValue = options.scopeManager.getValue(part.value);
@@ -70,7 +64,7 @@
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
                         bboxSR: ext.spatialReference.wkid || 102100,
                         layers: "show:0",
-                        layerDefs: `{"0":"objectid=${oid}"}`,
+                        layerDefs: `{"0":"objectid=${oid}"}`, // Sintaxis JSON estricta para hosted services
                         size: "1000,750",
                         format: "png32",
                         transparent: "true",
@@ -94,6 +88,27 @@
             const temp = document.createElement('div');
             temp.textContent = str;
             return temp.innerHTML;
+        }
+
+        function prepararTablaPriorizada(rawData, domainMap) {
+            const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
+
+            let partidas = [
+                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, intervencion: getLabel("tipo_intervencion", rawData.tipo_intervencion) },
+                { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, intervencion: getLabel("tipo_intervencion_perimetrales", rawData.tipo_intervencion_perimetrales) },
+                { nombre: "C. Techumbre", p: rawData.c_ponderado, intervencion: getLabel("tipo_intervencion_techumbre", rawData.tipo_intervencion_techumbre)},
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_ponderado, intervencion: getLabel("tipo_intervencion_ascensores", rawData.tipo_intervencion_ascensores)},
+                { nombre: "E. Fachadas y/o Muros", p: rawData.e_ponderado, intervencion: getLabel("tipo_intervencion_fachada", rawData.tipo_intervencion_fachada) },
+                { nombre: "F. Sistemas de Iluminación", p: rawData.f_ponderado, intervencion: getLabel("tipo_intervencion_iluminaria", rawData.tipo_intervencion_iluminaria)},
+                { nombre: "G. Redes de Servicio", p: rawData.g_ponderado, intervencion: getLabel("Tipo_Intervencion_Redes_servicios", rawData.Tipo_Intervencion_Redes_servicios)},
+                { nombre: "K. Accesibilidad Universal", p: rawData.k_ponderado, intervencion: "No aplica" }
+            ];
+            partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
+            return partidas.map(item => ({
+                nombre: item.nombre,
+                p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000",
+                intervencion: sanitize(item.intervencion)
+            }));
         }
 
         async function generar() {
@@ -129,41 +144,35 @@
                     mapaGis = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
-                // 2. Procesar Atributos
-                const attr = {};
+                // 2. Procesar Diccionario de Dominios
                 const domainMap = {};
                 if (serviceMeta.data.fields) {
                     serviceMeta.data.fields.forEach(f => {
-                        if (f.domain?.codedValues) {
+                        if (f.domain && f.domain.codedValues) {
                             domainMap[f.name] = {};
                             f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
                         }
                     });
                 }
 
+                // 3. Procesar Atributos (Mapeo redundante para evitar tags vacíos)
+                const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
+                    // Traducir si es dominio
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
-                    if (typeof val === 'number' && val > 1000000000000) val = new Date(val).toLocaleDateString("es-CL");
-                    attr[key.toUpperCase()] = sanitize(val);
-                });
-
-                // Inyectar el Mapa y Checks
-                if (mapaGis) attr["MAPA_POLIGONO"] = mapaGis;
-
-                Object.keys(rawData).forEach(key => {
-                    let val = rawData[key];
-                    if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
+                    // Formatear si es fecha
                     if (typeof val === 'number' && val > 1000000000000) val = new Date(val).toLocaleDateString("es-CL");
                     
                     const sVal = sanitize(val);
-                    attr[key.toUpperCase()] = sVal; // Guarda todo en mayúsculas (ej: REQUIERE_PLAGAS)
+                    attr[key] = sVal; // ej: nombre_comuna
+                    attr[key.toUpperCase()] = sVal; // ej: NOMBRE_COMUNA
                 });
 
-                // ============================================================
-                // RELACIÓN DE CONSTANTES (MAPEO WORD vs ARCGIS)
-                // Aquí defines: "NOMBRE_EN_WORD": "nombre_en_arcgis"
-                // ============================================================
+                // Inyectar Mapa
+                if (mapaGis) attr["MAPA_POLIGONO"] = mapaGis;
+
+                // 4. Mapeo de Checks (Lógica de Constantes)
                 const mapaChecks = {
                     "PLAGAS": "requiere_plagas",
                     "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta",
@@ -177,22 +186,19 @@
                     "REGULACION": "requiere_regularizacion",
                     "EFICIENCIA_ENERGETICA": "eficiencia_energetica",
                     "ACONDICIONAMIENTO": "acondicionamiento_termico"
-
                 };
 
-                // Aplicamos la lógica de los cuadritos ☑/☐ usando el mapa
                 Object.keys(mapaChecks).forEach(tagWord => {
                     const campoArcGIS = mapaChecks[tagWord];
-                    
-                    // Buscamos el valor original en los datos de ArcGIS
                     const valorRaw = String(rawData[campoArcGIS] || "").toLowerCase();
-                    
-                    // Si el valor es "sí" o "si", marcamos ☑, de lo contrario ☐
                     const esSi = valorRaw.includes("si") || valorRaw.includes("sí");
-                    
                     attr[tagWord] = esSi ? "☑" : "☐";
                 });
-                // 3. GENERAR WORD
+
+                // 5. IMPORTANTE: Generar la Tabla IV Priorizada
+                attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
+
+                // 6. GENERAR WORD
                 status.textContent = "📝 Generando reporte...";
                 const templateResp = await fetch(PLANTILLA_URL);
                 const zip = new window.PizZip(await templateResp.arrayBuffer());
@@ -209,16 +215,15 @@
                 doc.render();
 
                 window.saveAs(doc.getZip().generate({ type: "blob" }), `Reporte_DTC_${oid}.docx`);
-                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso completado exitosamente.</div>`;
+                status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Reporte generado con éxito.</div>`;
 
             } catch (error) {
-                console.error(error);
+                console.error("Error en flujo principal:", error);
                 status.textContent = "❌ " + error.message;
             }
         }
 
         // Ejecutar proceso principal
         generar();
-
-    }); // Cierre del require
-})(); // Cierre de la IIFE
+    });
+})();
