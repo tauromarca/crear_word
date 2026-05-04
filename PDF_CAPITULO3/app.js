@@ -82,24 +82,23 @@
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
-            const fetchLabel = (f, v) => (domainMap[f] && domainMap[f][v] !== undefined) ? domainMap[f][v] : v;
-            
-            let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), int: fetchLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
-                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), int: fetchLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
-                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), int: fetchLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre")) },
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), int: fetchLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores")) },
-                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), int: fetchLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
-                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), int: fetchLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria")) },
-                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), int: fetchLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios")) },
-                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), int: "No aplica" }
-            ];
+            const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
 
+            let partidas = [
+                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, intervencion: getLabel("tipo_intervencion", rawData.tipo_intervencion) },
+                { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, intervencion: getLabel("tipo_intervencion_perimetrales", rawData.tipo_intervencion_perimetrales) },
+                { nombre: "C. Techumbre", p: rawData.c_ponderado, intervencion: getLabel("tipo_intervencion_techumbre", rawData.tipo_intervencion_techumbre)},
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_ponderado, intervencion: getLabel("tipo_intervencion_ascensores", rawData.tipo_intervencion_ascensores)},
+                { nombre: "E. Fachadas y/o Muros", p: rawData.e_ponderado, intervencion: getLabel("tipo_intervencion_fachada", rawData.tipo_intervencion_fachada) },
+                { nombre: "F. Sistemas de Iluminación", p: rawData.f_ponderado, intervencion: getLabel("tipo_intervencion_iluminaria", rawData.tipo_intervencion_iluminaria)},
+                { nombre: "G. Redes de Servicio", p: rawData.g_ponderado, intervencion: getLabel("Tipo_Intervencion_Redes_servicios", rawData.Tipo_Intervencion_Redes_servicios)},
+                { nombre: "K. Accesibilidad Universal", p: rawData.k_ponderado, intervencion: "No aplica" }
+            ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre, 
-                p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", 
-                int: (item.int || "")
+                nombre: item.nombre,
+                p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000",
+                intervencion: sanitize(item.intervencion)
             }));
         }
 
@@ -156,7 +155,7 @@
                 }
 
                 // 4. Checks ☑
-                const mapaChecks = { "plagas": "requiere_plagas", "asbelto_cubierta": "requiere_asbesto_cubierta", "asbelto_fachada": "requiere_asbesto_fachada", "asbelto_loggia": "requiere_asbesto_logia", "asbelto_redes": "requiere_asbesto_redes", "riesgo_redes": "riesgo_redes_grave_deterioro", "riesgo_estructura": "riesgo_estructura_grave_deterioro", "riesgo_escaleras": "riesgo_escaleras_grave_deterioro", "riesgo_techumbre": "riesgo_techumbre_grave_deterioro", "regulacion": "requiere_regularizacion" };
+                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion", "EFICIENCIA_ENERGETICA": "eficiencia_energetica", "ACONDICIONAMIENTO": "acondicionamiento_termico" } ;
                 
                 Object.keys(mapaChecks).forEach(tag => {
                     const valArcGIS = String(getVal(rawData, mapaChecks[tag])).toLowerCase();
