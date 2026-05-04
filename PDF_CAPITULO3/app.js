@@ -8,28 +8,15 @@
         "esri/geometry/Polygon"
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
         const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
-
-        // ============================================================
-        // FUNCIONES DE UTILIDAD
-        // ============================================================
-        function sanitize(str) {
-            if (str === null || str === undefined) return "";
-            const temp = document.createElement('div');
-            temp.textContent = str;
-            return temp.innerHTML;
-        }
-
-        function getVal(obj, fieldName) {
-            if (!obj) return "";
-            const key = Object.keys(obj).find(k => k.toLowerCase() === fieldName.toLowerCase());
-            return key ? obj[key] : "";
-        }
 
         // ============================================================
         // 1. MÓDULO DE IMAGEN v4
@@ -58,15 +45,30 @@
         };
 
         // ============================================================
-        // 2. FUNCIÓN DE EXPORTACIÓN DE MAPA (Corregida)
+        // 2. UTILIDADES
         // ============================================================
-        async function obtenerImagenMapa(oid, geometry) {
+        function sanitize(str) {
+            if (str === null || str === undefined) return "";
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
+        function getVal(obj, fieldName) {
+            if (!obj) return "";
+            const key = Object.keys(obj).find(k => k.toLowerCase() === fieldName.toLowerCase());
+            return key ? obj[key] : "";
+        }
+
+        // ============================================================
+        // 3. EXPORTACIÓN DE MAPA (PNG) Y DESCARGA DIRECTA
+        // ============================================================
+        async function obtenerYDescargarMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
                 const ext = poly.extent.expand(2.5);
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
                 
-                // Obtener credenciales
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
                 
                 const queryParams = {
@@ -75,7 +77,7 @@
                     imageSR: JSON.stringify(ext.spatialReference),
                     layers: "show:0",
                     layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
-                    size: "1000,750",
+                    size: "1200,900",
                     format: "png32",
                     transparent: "true",
                     f: "image",
@@ -89,9 +91,9 @@
 
                 const uint8Array = new Uint8Array(response.data);
                 
-                // Descarga PNG por separado
-                const blob = new Blob([uint8Array], { type: "image/png" });
-                window.saveAs(blob, `Mapa_Poligono_${oid}.png`);
+                // --- ACCIÓN 1: DESCARGAR PNG USANDO window.saveAs ---
+                const imageBlob = new Blob([uint8Array], { type: "image/png" });
+                window.saveAs(imageBlob, `Mapa_Poligono_${oid}.png`);
                 
                 return uint8Array;
             } catch (e) { 
@@ -101,27 +103,27 @@
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
-            const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
+            const getLabel = (f, v) => (domainMap[f] && domainMap[f][v] !== undefined) ? domainMap[f][v] : v;
             let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), intervencion: getLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
-                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), intervencion: getLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
-                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), intervencion: getLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre"))},
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), intervencion: getLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores"))},
-                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), intervencion: getLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
-                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), intervencion: getLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria"))},
-                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), intervencion: getLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios"))},
-                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), intervencion: "No aplica" }
+                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), int: getLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
+                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), int: getLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
+                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), int: getLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre")) },
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), int: getLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores")) },
+                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), int: getLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
+                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), int: getLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria")) },
+                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), int: getLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios")) },
+                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), int: "No aplica" }
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre,
-                p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000",
-                intervencion: sanitize(item.intervencion)
+                nombre: item.nombre, 
+                p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", 
+                int: sanitize(item.int)
             }));
         }
 
         // ============================================================
-        // 3. GENERACIÓN
+        // 4. GENERACIÓN PRINCIPAL
         // ============================================================
         async function generar() {
             const status = document.getElementById("status");
@@ -133,50 +135,41 @@
             if (loader) loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Validando identidad institucional...";
+                status.textContent = "🔐 Accediendo a datos institucionales...";
 
                 const [serviceMeta, response] = await Promise.all([
                     esriRequest(FEATURE_LAYER_URL, { query: { f: "json" }, responseType: "json" }),
-                    esriRequest(`${FEATURE_LAYER_URL}/query`, {
-                        query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" },
-                        responseType: "json"
-                    })
+                    esriRequest(`${FEATURE_LAYER_URL}/query`, { query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" }, responseType: "json" })
                 ]);
 
-                if (!response.data.features || response.data.features.length === 0) {
-                    throw new Error("Registro no encontrado.");
-                }
-                
+                if (!response.data.features.length) throw new Error("Registro no encontrado.");
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Mapa
+                // 1. Obtener y Bajar Mapa PNG
                 let mapaBuffer = null;
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando mapa...";
-                    mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
+                    status.textContent = "🗺️ Bajando imagen del mapa...";
+                    mapaBuffer = await obtenerYDescargarMapa(oid, feature.geometry);
                 }
 
-                // 2. Diccionario de Dominios
+                // 2. Procesar Dominios
                 const domainMap = {};
-                if (serviceMeta.data.fields) {
-                    serviceMeta.data.fields.forEach(f => {
-                        if (f.domain && f.domain.codedValues) {
-                            domainMap[f.name] = {};
-                            f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
-                        }
-                    });
-                }
+                serviceMeta.data.fields.forEach(f => {
+                    if (f.domain?.codedValues) {
+                        domainMap[f.name] = {};
+                        f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
+                    }
+                });
 
-                // 3. Procesar Atributos
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
+                // 3. Mapeo de Atributos (Minúsculas y MAYÚSCULAS)
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
-                    
                     const sVal = sanitize(val);
                     attr[key.toLowerCase()] = sVal;
                     attr[key.toUpperCase()] = sVal;
@@ -198,30 +191,29 @@
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 5. Word
+                // 5. GENERAR Y BAJAR WORD USANDO window.saveAs
                 status.textContent = "📝 Generando reporte Word...";
-                const templateResp = await fetch(PLANTILLA_URL);
-                const zip = new window.PizZip(await templateResp.arrayBuffer());
-                
-                const doc = new window.docxtemplater(zip, { 
+                const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
+                const doc = new window.docxtemplater(new window.PizZip(template), {
                     delimiters: { start: "[[", end: "]]" },
-                    modules: [new MyImageModule({
-                        getSize: (img, val, tagName) => tagName.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
-                    })],
-                    nullGetter: () => "" 
+                    modules: [new MyImageModule({ getSize: (i, v, n) => n.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200] })],
+                    nullGetter: () => ""
                 });
 
                 doc.setData(attr);
                 doc.render();
 
-                window.saveAs(doc.getZip().generate({ type: "blob" }), `Reporte_DTC_${oid}.docx`);
+                const out = doc.getZip().generate({ type: "blob" });
                 
-                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso completado exitosamente.</div>`;
+                // --- ACCIÓN 2: DESCARGAR WORD USANDO window.saveAs ---
+                window.saveAs(out, `Ficha_Priorizacion_${oid}.docx`);
+                
+                status.textContent = "✅ ¡Archivos generados con éxito!";
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ " + error.message;
+                status.textContent = "❌ Error: " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
