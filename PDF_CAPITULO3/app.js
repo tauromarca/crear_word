@@ -14,7 +14,6 @@
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
         
-        // REEMPLAZAR CON TUS CREDENCIALES
         const CONVERT_API_SECRET = "TU_SECRET_CONVERTAPI"; 
         const APP_ID_ARCGIS = "TU_APP_ID_OAUTH2"; 
 
@@ -22,7 +21,7 @@
         esriId.registerOAuthInfos([authInfo]);
 
         // ============================================================
-        // 1. MÓDULO DE IMAGEN INTEGRADO (v4 Compatible)
+        // 1. MÓDULO DE IMAGEN PARA DOCXTEMPLATER (v4)
         // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
         MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
@@ -55,14 +54,13 @@
         };
 
         // ============================================================
-        // 2. EXPORTACIÓN DE MAPA (CORRECCIÓN ERROR 400)
+        // 2. EXPORTACIÓN DE MAPA Y DESCARGA PNG
         // ============================================================
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
                 const ext = poly.extent.expand(2.5);
                 
-                // Limpieza de URL: Obtenemos el base MapServer
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
@@ -73,7 +71,7 @@
                         imageSR: ext.spatialReference.wkid || 102100,
                         layers: "show:0",
                         layerDefs: JSON.stringify({ "0": `objectid = ${oid}` }),
-                        size: "1000,750",
+                        size: "1200,900",
                         format: "png32",
                         transparent: "true",
                         f: "image",
@@ -81,7 +79,15 @@
                     },
                     responseType: "array-buffer"
                 });
-                return new Uint8Array(response.data);
+
+                const uint8Array = new Uint8Array(response.data);
+
+                // --- NUEVO: BAJAR LA IMAGEN PNG POR SEPARADO ---
+                const imageBlob = new Blob([uint8Array], { type: "image/png" });
+                window.saveAs(imageBlob, `Mapa_Poligono_ID_${oid}.png`);
+                console.log("📥 PNG del mapa descargado por separado.");
+
+                return uint8Array;
             } catch (e) {
                 console.error("❌ Fallo en exportación de mapa:", e);
                 return null;
@@ -89,7 +95,7 @@
         }
 
         // ============================================================
-        // 3. PROCESAMIENTO Y LÓGICA
+        // 3. PROCESAMIENTO
         // ============================================================
         function sanitize(str) {
             if (str === null || str === undefined) return "";
@@ -142,14 +148,14 @@
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Mapa
+                // 1. Obtener y Descargar PNG del Mapa
                 let mapaGis = null;
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando plano...";
+                    status.textContent = "🗺️ Generando y bajando imagen PNG...";
                     mapaGis = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
-                // 2. Dominios
+                // 2. Procesar Dominios
                 const domainMap = {};
                 if (serviceMeta.data.fields) {
                     serviceMeta.data.fields.forEach(f => {
@@ -160,7 +166,6 @@
                     });
                 }
 
-                // Hallazgo 2.2: Limpieza URL
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
                 // 3. Atributos
@@ -185,10 +190,10 @@
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 5. Renderizado Word
+                // 5. Word
                 status.textContent = "📝 Generando reporte Word...";
-                const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
-                const doc = new window.docxtemplater(new window.PizZip(template), {
+                const templateResp = await fetch(PLANTILLA_URL);
+                const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
                     delimiters: { start: "[[", end: "]]" },
                     modules: [new MyImageModule({
                         getSize: (img, val, tagName) => tagName === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
@@ -199,8 +204,8 @@
                 doc.setData(attr);
                 doc.render();
 
-                // 6. PDF Automático
-                status.textContent = "🚀 Convirtiendo a PDF institucional...";
+                // 6. PDF
+                status.textContent = "🚀 Convirtiendo a PDF oficial...";
                 const docxBlob = doc.getZip().generate({ type: "blob" });
                 const fileName = `Ficha_Priorizacion_${oid}`;
                 
