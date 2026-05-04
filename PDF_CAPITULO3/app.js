@@ -8,20 +8,17 @@
         "esri/geometry/Polygon"
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
         
         const CONVERT_API_SECRET = "TU_SECRET_REAL"; 
-        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
+        const APP_ID_ARCGIS = "TU_APP_ID_REAL"; 
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
         // ============================================================
-        // 1. MÓDULO DE IMAGEN INTEGRADO (v4)
+        // 1. MÓDULO DE IMAGEN MEJORADO
         // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
         MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
@@ -36,7 +33,7 @@
 
             const numId = Math.floor(Math.random() * 1e6);
             const rId = "rIdImg" + numId;
-            const imgName = "mapa_gis_" + numId + ".png";
+            const imgName = "mapa_" + numId + ".png";
             const size = this.options.getSize(null, tagValue, part.value);
 
             this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
@@ -50,13 +47,13 @@
         };
 
         // ============================================================
-        // 2. EXPORTACIÓN DE MAPA (PNG)
+        // 2. EXPORTACIÓN DE MAPA (FIJANDO ERROR 400)
         // ============================================================
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.8);
-                const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
+                const ext = poly.extent.expand(2.5);
+                const mapServerUrl = FEATURE_LAYER_URL.replace("FeatureServer/0", "MapServer");
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
                 const response = await esriRequest(`${mapServerUrl}/export`, {
@@ -64,43 +61,32 @@
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
                         bboxSR: ext.spatialReference.wkid || 102100,
                         layers: "show:0",
-                        layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
-                        size: "1200,900", format: "png32", transparent: "true", f: "image",
+                        // Sintaxis específica para Hosted Services:
+                        layerDefs: `0:objectid=${oid}`, 
+                        size: "1000,800",
+                        format: "png32",
+                        transparent: "true",
+                        f: "image",
                         token: credential.token
                     },
                     responseType: "array-buffer"
                 });
 
                 const uint8Array = new Uint8Array(response.data);
-                // Bajar PNG por separado con un pequeño delay para evitar bloqueo del navegador
-                setTimeout(() => {
-                    window.saveAs(new Blob([uint8Array], { type: "image/png" }), `Mapa_Poligono_${oid}.png`);
-                }, 500);
+                
+                // Descarga PNG por separado
+                const blob = new Blob([uint8Array], { type: "image/png" });
+                window.saveAs(blob, `Mapa_Copropiedad_${oid}.png`);
                 
                 return uint8Array;
-            } catch (e) { console.error("Error exportando mapa:", e); return null; }
-        }
-
-        function prepararTablaPriorizada(rawData, domainMap) {
-            const getLabel = (f, v) => (domainMap[f] && domainMap[f][v] !== undefined) ? domainMap[f][v] : v;
-            let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, int: getLabel("tipo_intervencion", rawData.tipo_intervencion) },
-                { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, int: getLabel("tipo_intervencion_perimetrales", rawData.tipo_intervencion_perimetrales) },
-                { nombre: "C. Techumbre", p: rawData.c_ponderado, int: getLabel("tipo_intervencion_techumbre", rawData.tipo_intervencion_techumbre) },
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_ponderado, int: getLabel("tipo_intervencion_ascensores", rawData.tipo_intervencion_ascensores) },
-                { nombre: "E. Fachadas y/o Muros", p: rawData.e_ponderado, int: getLabel("tipo_intervencion_fachada", rawData.tipo_intervencion_fachada) },
-                { nombre: "F. Sistemas de Iluminación", p: rawData.f_ponderado, int: getLabel("tipo_intervencion_iluminaria", rawData.tipo_intervencion_iluminaria) },
-                { nombre: "G. Redes de Servicio", p: rawData.g_ponderado, int: getLabel("Tipo_Intervencion_Redes_servicios", rawData.Tipo_Intervencion_Redes_servicios) },
-                { nombre: "K. Accesibilidad Universal", p: rawData.k_ponderado, int: "No aplica" }
-            ];
-            partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
-            return partidas.map(item => ({
-                nombre: item.nombre, p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000", int: (item.int === null || item.int === undefined) ? "" : item.int
-            }));
+            } catch (e) { 
+                console.error("❌ Error exportando mapa:", e); 
+                return null; 
+            }
         }
 
         // ============================================================
-        // 3. PROCESO DE GENERACIÓN
+        // 3. GENERACIÓN Y MAPEADO DE DATOS
         // ============================================================
         async function generar() {
             const status = document.getElementById("status");
@@ -108,11 +94,11 @@
             const urlParams = new URLSearchParams(window.location.search);
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
-            if (!oid) { status.textContent = "ID no detectado."; return; }
+            if (!oid) { status.textContent = "Error: Falta ID."; return; }
             if (loader) loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Accediendo a ArcGIS...";
+                status.textContent = "📡 Consultando ArcGIS...";
 
                 const [serviceMeta, response] = await Promise.all([
                     esriRequest(FEATURE_LAYER_URL, { query: { f: "json" }, responseType: "json" }),
@@ -126,14 +112,14 @@
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Mapa
-                let mapaBuffer = null;
+                // 1. Obtener Mapa
+                let mapaGis = null;
                 if (feature.geometry) {
                     status.textContent = "🗺️ Generando mapa...";
-                    mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
+                    mapaGis = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
-                // 2. Dominios
+                // 2. Procesar Dominios
                 const domainMap = {};
                 serviceMeta.data.fields.forEach(f => {
                     if (f.domain?.codedValues) {
@@ -142,9 +128,7 @@
                     }
                 });
 
-                if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
-
-                // 3. Atributos (MAPEADOS A MINÚSCULAS Y MAYÚSCULAS PARA EL WORD)
+                // 3. MAPEADO CRÍTICO (Word usa minúsculas según tu foto)
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
@@ -152,53 +136,51 @@
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
                     
                     const finalVal = (val === null || val === undefined) ? "" : val;
-                    attr[key] = finalVal; // Para tags [[nombre_conjunto]]
-                    attr[key.toUpperCase()] = finalVal; // Para tags [[NOMBRE_CONJUNTO]]
+                    // Guardamos el valor en minúscula para coincidir con [[copropiedad_formalizada]]
+                    attr[key.toLowerCase()] = finalVal;
+                    attr[key] = finalVal;
                 });
 
-                if (mapaBuffer) {
-                    attr["MAPA_POLIGONO"] = mapaBuffer;
-                    attr["mapa_poligono"] = mapaBuffer;
-                }
+                // Inyectar Mapa
+                if (mapaGis) attr["mapa_poligono"] = mapaGis;
 
-                // 4. Lógica de Checks ☑
-                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
-                Object.keys(mapaChecks).forEach(tag => {
-                    const valorArcGIS = String(rawData[mapaChecks[tag]] || "").toLowerCase();
-                    const check = (valorArcGIS.includes("si") || valorArcGIS.includes("sí")) ? "☑" : "☐";
-                    attr[tag] = check;
-                    attr[tag.toLowerCase()] = check;
+                // 4. Lógica de Checks (Mapeamos a minúsculas)
+                const mapaChecks = { "plagas": "requiere_plagas", "asbelto_cubierta": "requiere_asbesto_cubierta", "asbelto_fachada": "requiere_asbesto_fachada", "asbelto_loggia": "requiere_asbesto_logia", "asbelto_redes": "requiere_asbesto_redes", "riesgo_redes": "riesgo_redes_grave_deterioro", "riesgo_estructura": "riesgo_estructura_grave_deterioro", "riesgo_escaleras": "riesgo_escaleras_grave_deterioro", "riesgo_techumbre": "riesgo_techumbre_grave_deterioro", "regulacion": "requiere_regularizacion" };
+                
+                Object.keys(mapaChecks).forEach(tagWord => {
+                    const campoArcGIS = mapaChecks[tagWord];
+                    const valorRaw = String(rawData[campoArcGIS] || "").toLowerCase();
+                    const esSi = valorRaw.includes("si") || valorRaw.includes("sí");
+                    attr[tagWord] = esSi ? "☑" : "☐";
                 });
-
-                attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
                 // 5. WORD
-                status.textContent = "📝 Generando reporte oficial...";
+                status.textContent = "📝 Generando reporte Word...";
                 const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
                 const doc = new window.docxtemplater(new window.PizZip(template), {
                     delimiters: { start: "[[", end: "]]" },
                     modules: [new MyImageModule({
-                        getSize: (img, val, tagName) => tagName.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
+                        getSize: (img, val, tagName) => tagName.toLowerCase() === "mapa_poligono" ? [550, 420] : [300, 200]
                     })],
                     nullGetter: () => ""
                 });
 
+                console.log("DATOS ENVIADOS AL WORD:", attr); // VERIFICA ESTO EN F12
+
                 doc.setData(attr);
                 doc.render();
 
-                const out = doc.getZip().generate({ type: "blob" });
-                window.saveAs(out, `Ficha_Copropiedad_${oid}.docx`);
+                window.saveAs(doc.getZip().generate({ type: "blob" }), `Ficha_Copropiedad_${oid}.docx`);
                 
-                status.textContent = "✅ ¡Proceso completado!";
+                status.textContent = "✅ ¡Listo!";
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ Error: " + error.message;
+                status.textContent = "❌ " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
-
         generar();
     });
 })();
