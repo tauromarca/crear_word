@@ -16,7 +16,7 @@
         esriId.registerOAuthInfos([authInfo]);
 
         // ============================================================
-        // FUNCIONES DE UTILIDAD (Definidas al inicio para evitar ReferenceError)
+        // FUNCIONES DE UTILIDAD
         // ============================================================
         function sanitize(str) {
             if (str === null || str === undefined) return "";
@@ -58,56 +58,64 @@
         };
 
         // ============================================================
-        // 2. EXPORTACIÓN DE MAPA
+        // 2. FUNCIÓN DE EXPORTACIÓN DE MAPA (Corregida)
         // ============================================================
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
                 const ext = poly.extent.expand(2.5);
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
+                
+                // Obtener credenciales
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
+                
+                const queryParams = {
+                    bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
+                    bboxSR: JSON.stringify(ext.spatialReference),
+                    imageSR: JSON.stringify(ext.spatialReference),
+                    layers: "show:0",
+                    layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
+                    size: "1000,750",
+                    format: "png32",
+                    transparent: "true",
+                    f: "image",
+                    token: credential.token
+                };
 
                 const response = await esriRequest(`${mapServerUrl}/export`, {
-                    query: {
-                        bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                        bboxSR: ext.spatialReference.wkid || 102100,
-                        layers: "show:0",
-                        layerDefs: `{"0":"objectid=${oid}"}`, // CORREGIDO: Sintaxis para detectar la variable oid
-                        size: "1000,800", format: "png32", transparent: "true", f: "image",
-                        token: credential.token
-                    },
+                    query: queryParams,
                     responseType: "array-buffer"
                 });
 
                 const uint8Array = new Uint8Array(response.data);
                 
-                // DESCARGAR PNG POR SEPARADO
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(new Blob([uint8Array], { type: "image/png" }));
-                link.download = `Mapa_Copropiedad_${oid}.png`;
-                link.click();
+                // Descarga PNG por separado
+                const blob = new Blob([uint8Array], { type: "image/png" });
+                window.saveAs(blob, `Mapa_Poligono_${oid}.png`);
                 
                 return uint8Array;
-            } catch (e) { console.error("❌ Error exportando mapa:", e); return null; }
+            } catch (e) { 
+                console.error("❌ Error exportando mapa:", e); 
+                return null; 
+            }
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
             const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
-
             let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, intervencion: getLabel("tipo_intervencion", rawData.tipo_intervencion) },
-                { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, intervencion: getLabel("tipo_intervencion_perimetrales", rawData.tipo_intervencion_perimetrales) },
-                { nombre: "C. Techumbre", p: rawData.c_ponderado, intervencion: getLabel("tipo_intervencion_techumbre", rawData.tipo_intervencion_techumbre)},
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: rawData.d_ponderado, intervencion: getLabel("tipo_intervencion_ascensores", rawData.tipo_intervencion_ascensores)},
-                { nombre: "E. Fachadas y/o Muros", p: rawData.e_ponderado, intervencion: getLabel("tipo_intervencion_fachada", rawData.tipo_intervencion_fachada) },
-                { nombre: "F. Sistemas de Iluminación", p: rawData.f_ponderado, intervencion: getLabel("tipo_intervencion_iluminaria", rawData.tipo_intervencion_iluminaria)},
-                { nombre: "G. Redes de Servicio", p: rawData.g_ponderado, intervencion: getLabel("Tipo_Intervencion_Redes_servicios", rawData.Tipo_Intervencion_Redes_servicios)},
-                { nombre: "K. Accesibilidad Universal", p: rawData.k_ponderado, intervencion: "No aplica" }
+                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), intervencion: getLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
+                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), intervencion: getLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
+                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), intervencion: getLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre"))},
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), intervencion: getLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores"))},
+                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), intervencion: getLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
+                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), intervencion: getLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria"))},
+                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), intervencion: getLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios"))},
+                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), intervencion: "No aplica" }
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
                 nombre: item.nombre,
-                p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000",
+                p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000",
                 intervencion: sanitize(item.intervencion)
             }));
         }
@@ -129,10 +137,15 @@
 
                 const [serviceMeta, response] = await Promise.all([
                     esriRequest(FEATURE_LAYER_URL, { query: { f: "json" }, responseType: "json" }),
-                    esriRequest(`${FEATURE_LAYER_URL}/query`, { query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" }, responseType: "json" })
+                    esriRequest(`${FEATURE_LAYER_URL}/query`, {
+                        query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" },
+                        responseType: "json"
+                    })
                 ]);
 
-                if (!response.data.features.length) throw new Error("Registro no encontrado.");
+                if (!response.data.features || response.data.features.length === 0) {
+                    throw new Error("Registro no encontrado.");
+                }
                 
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
@@ -148,23 +161,25 @@
                 const domainMap = {};
                 if (serviceMeta.data.fields) {
                     serviceMeta.data.fields.forEach(f => {
-                        if (f.domain?.codedValues) {
+                        if (f.domain && f.domain.codedValues) {
                             domainMap[f.name] = {};
                             f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
                         }
                     });
                 }
 
-                if (window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
+                // 3. Procesar Atributos
+                if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
-                // 3. Atributos para el Word
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
-                    attr[key.toLowerCase()] = (val === null || val === undefined) ? "" : val;
-                    attr[key.toUpperCase()] = sanitize(val);
+                    
+                    const sVal = sanitize(val);
+                    attr[key.toLowerCase()] = sVal;
+                    attr[key.toUpperCase()] = sVal;
                 });
 
                 if (mapaBuffer) {
@@ -172,9 +187,8 @@
                     attr["mapa_poligono"] = mapaBuffer;
                 }
 
-                // 4. Checks ☑
-                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion", "EFICIENCIA_ENERGETICA": "eficiencia_energetica", "ACONDICIONAMIENTO": "acondicionamiento_termico" } ;
-                
+                // 4. Lógica de Checks ☑
+                const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
                 Object.keys(mapaChecks).forEach(tag => {
                     const valArcGIS = String(getVal(rawData, mapaChecks[tag])).toLowerCase();
                     const check = (valArcGIS.includes("si") || valArcGIS.includes("sí")) ? "☑" : "☐";
@@ -187,10 +201,14 @@
                 // 5. Word
                 status.textContent = "📝 Generando reporte Word...";
                 const templateResp = await fetch(PLANTILLA_URL);
-                const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
+                const zip = new window.PizZip(await templateResp.arrayBuffer());
+                
+                const doc = new window.docxtemplater(zip, { 
                     delimiters: { start: "[[", end: "]]" },
-                    modules: [new MyImageModule({ getSize: (i, v, n) => n.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200] })],
-                    nullGetter: () => ""
+                    modules: [new MyImageModule({
+                        getSize: (img, val, tagName) => tagName.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
+                    })],
+                    nullGetter: () => "" 
                 });
 
                 doc.setData(attr);
@@ -198,15 +216,16 @@
 
                 window.saveAs(doc.getZip().generate({ type: "blob" }), `Reporte_DTC_${oid}.docx`);
                 
-                status.textContent = "✅ ¡Proceso completado!";
+                status.innerHTML = `<div style="color: #27ae60;">✔ Proceso completado exitosamente.</div>`;
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ Error: " + error.message;
+                status.textContent = "❌ " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
+
         generar();
     });
 })();
