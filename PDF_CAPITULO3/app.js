@@ -9,26 +9,20 @@
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
         // ============================================================
-        // CONFIGURACIÓN CENTRALIZADA
+        // CONFIGURACIÓN
         // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
-        
-        // REEMPLAZAR CON TUS CREDENCIALES REALES
-        const CONVERT_API_SECRET = "TU_SECRET_CONVERTAPI"; 
-        const APP_ID_ARCGIS = "TU_APP_ID_OAUTH2"; 
+        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; // <--- PEGA AQUÍ TU ID DE CLIENTE REGISTRADO
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
         // ============================================================
-        // 1. MÓDULO DE IMAGEN PARA DOCXTEMPLATER (v4)
+        // 1. MÓDULO DE IMAGEN INTEGRADO (v4)
         // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
-        MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
-            this.docxtemplater = docxtemplater;
-            return options;
-        };
+        MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
         MyImageModule.prototype.parse = function(type, data) {
             if (type === "tag" && data.tag.charAt(0) === "%") return { type: "placeholder", value: data.tag.substr(1) };
             return null;
@@ -40,28 +34,33 @@
 
             const numId = Math.floor(Math.random() * 1e6);
             const rId = "rIdImg" + numId;
-            const imgName = "img_arcgis_" + numId + ".png";
+            const imgName = "img_gis_" + numId + ".png";
             const size = this.options.getSize(null, tagValue, part.value);
 
-            this.docxtemplater.zip.file("word/media/" + imgName, tagValue, { binary: true });
-
+            this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
             const relsPath = "word/_rels/document.xml.rels";
-            let relsContent = this.docxtemplater.zip.file(relsPath).asText();
-            relsContent = relsContent.replace("</Relationships>", `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/></Relationships>`);
-            this.docxtemplater.zip.file(relsPath, relsContent);
+            let rels = this.doc.zip.file(relsPath).asText();
+            rels = rels.replace("</Relationships>", `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/></Relationships>`);
+            this.doc.zip.file(relsPath, rels);
 
             const cx = Math.round(size[0] * 9525), cy = Math.round(size[1] * 9525);
             return { value: `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${numId}" name="Pic"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>` };
         };
 
         // ============================================================
-        // 2. EXPORTACIÓN DE MAPA (PNG) Y DESCARGA
+        // 2. FUNCIONES AUXILIARES
         // ============================================================
+        function sanitize(str) {
+            if (str === null || str === undefined) return "";
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.5); // Margen del mapa
-                
+                const ext = poly.extent.expand(2.5);
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
@@ -70,37 +69,17 @@
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
                         bboxSR: JSON.stringify(ext.spatialReference),
                         layers: "show:0",
-                        layerDefs: JSON.stringify({"0": `objectid = ${oid}`}), // Corrección Error 400
-                        size: "1200,900",
-                        format: "png32",
-                        transparent: "true",
-                        f: "image",
-                        token: credential.token
+                        layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
+                        size: "1200,900", format: "png32", transparent: "true", f: "image", token: credential.token
                     },
                     responseType: "array-buffer"
                 });
 
                 const uint8Array = new Uint8Array(response.data);
-
-                // ACCIÓN: BAJAR PNG POR SEPARADO
-                const imageBlob = new Blob([uint8Array], { type: "image/png" });
-                window.saveAs(imageBlob, `Plano_Poligono_ID_${oid}.png`);
-
+                // Bajar PNG por separado
+                window.saveAs(new Blob([uint8Array], { type: "image/png" }), `Plano_ID_${oid}.png`);
                 return uint8Array;
-            } catch (e) {
-                console.error("❌ Error exportando mapa:", e);
-                return null;
-            }
-        }
-
-        // ============================================================
-        // 3. UTILIDADES Y PROCESAMIENTO
-        // ============================================================
-        function sanitize(str) {
-            if (str === null || str === undefined) return "";
-            const temp = document.createElement('div');
-            temp.textContent = str;
-            return temp.innerHTML;
+            } catch (e) { console.error("Error mapa:", e); return null; }
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
@@ -117,14 +96,12 @@
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre,
-                p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000",
-                int: sanitize(item.int)
+                nombre: item.nombre, p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000", int: sanitize(item.int)
             }));
         }
 
         // ============================================================
-        // 4. PROCESO DE GENERACIÓN
+        // 3. PROCESO DE GENERACIÓN
         // ============================================================
         async function generar() {
             const status = document.getElementById("status");
@@ -132,7 +109,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
-            if (!oid) { status.textContent = "Error: ID no detectado."; return; }
+            if (!oid) { status.textContent = "Error: Falta ID."; return; }
             if (loader) loader.style.display = "block";
 
             try {
@@ -150,54 +127,48 @@
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
-                // 1. Obtener Mapa y Bajarlo como PNG
+                // 1. Mapa
                 let mapaBuffer = null;
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando y descargando mapa...";
+                    status.textContent = "🗺️ Generando y bajando imagen PNG...";
                     mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
-                // 2. Procesar Dominios
+                // 2. Atributos y Dominios
                 const domainMap = {};
-                if (serviceMeta.data.fields) {
-                    serviceMeta.data.fields.forEach(f => {
-                        if (f.domain?.codedValues) {
-                            domainMap[f.name] = {};
-                            f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
-                        }
-                    });
-                }
+                serviceMeta.data.fields.forEach(f => {
+                    if (f.domain?.codedValues) {
+                        domainMap[f.name] = {};
+                        f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
+                    }
+                });
 
-                // Hallazgo 2.2: Limpieza de URL
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
-                // 3. Mapeo de Atributos
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
                     const sVal = sanitize(val);
-                    attr[key] = sVal;
                     attr[key.toUpperCase()] = sVal;
                 });
 
-                // Inyectar Mapa en Word
                 if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
 
-                // 4. Lógica de Checks ☑
+                // 3. Lógica de Checks ☑
                 const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
                 Object.keys(mapaChecks).forEach(tag => {
-                    const valorRaw = String(rawData[mapaChecks[tag]] || "").toLowerCase();
-                    attr[tag] = (valorRaw.includes("si") || valorRaw.includes("sí")) ? "☑" : "☐";
+                    const val = String(rawData[mapaChecks[tag]] || "").toLowerCase();
+                    attr[tag] = (val.includes("si") || val.includes("sí")) ? "☑" : "☐";
                 });
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 5. RENDERIZADO WORD
-                status.textContent = "📝 Generando reporte Word...";
-                const templateResp = await fetch(PLANTILLA_URL);
-                const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
+                // 4. GENERAR WORD
+                status.textContent = "📝 Generando reporte oficial...";
+                const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
+                const doc = new window.docxtemplater(new window.PizZip(template), {
                     delimiters: { start: "[[", end: "]]" },
                     modules: [new MyImageModule({
                         getSize: (img, val, tagName) => tagName === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
@@ -208,20 +179,10 @@
                 doc.setData(attr);
                 doc.render();
 
-                // 6. PDF AUTOMÁTICO
-                status.textContent = "🚀 Convirtiendo a PDF oficial...";
-                const docxBlob = doc.getZip().generate({ type: "blob" });
-                const fileName = `Reporte_DTC_${oid}`;
+                const out = doc.getZip().generate({ type: "blob" });
+                window.saveAs(out, `Ficha_Priorizacion_${oid}.docx`);
                 
-                const conv = window.ConvertApi.auth({ secret: CONVERT_API_SECRET });
-                const params = conv.createParams();
-                params.add('File', docxBlob, `${fileName}.docx`);
-                const result = await conv.convert('docx', 'pdf', params);
-                
-                const pdfBlob = await fetch(result.files[0].Url).then(r => r.blob());
-                window.saveAs(pdfBlob, `${fileName}.pdf`);
-                
-                status.innerHTML = `<div style="color: #27ae60; font-weight: bold;">✔ Proceso completado exitosamente.</div>`;
+                status.textContent = "✅ ¡Reporte generado con éxito!";
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
