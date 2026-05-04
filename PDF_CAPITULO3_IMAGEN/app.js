@@ -8,84 +8,80 @@
         "esri/geometry/Polygon"
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
-        // ============================================================
-        // FUNCIÓN DE EXPORTACIÓN Y DESCARGA PNG
-        // ============================================================
         async function descargarMapaPNG(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                // Expandimos el área un 250% para ver contexto (calles, manzanas)
+                // Expandimos el área para dar contexto al polígono
                 const ext = poly.extent.expand(2.5); 
                 
-                // Convertimos la URL de FeatureServer a MapServer para usar la función export
-                const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
+                // Limpieza de URL: Obtenemos el MapServer base
+                // Resultado esperado: https://.../MapServer
+                const baseUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0];
+                const exportUrl = `${baseUrl}/MapServer/export`;
                 
-                // Forzamos la obtención de credenciales institucionales
+                // Forzar obtención de credenciales
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
-                const queryParams = {
-                    bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                    bboxSR: JSON.stringify(ext.spatialReference),
-                    imageSR: JSON.stringify(ext.spatialReference),
-                    layers: "show:0",
-                    // layerDefs filtra para que solo aparezca el polígono de esta copropiedad
-                    layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
-                    size: "1200,900", // Alta resolución
+                // Definimos los parámetros de forma plana (Strings) para evitar el error 400
+                const params = {
+                    bbox: ext.xmin + "," + ext.ymin + "," + ext.xmax + "," + ext.ymax,
+                    bboxSR: ext.spatialReference.wkid || 102100,
+                    imageSR: ext.spatialReference.wkid || 102100,
+                    size: "1200,900",
                     format: "png32",
+                    layers: "show:0",
+                    // layerDefs es crítico: debe ser un string JSON {"0":"objectid=X"}
+                    layerDefs: JSON.stringify({ "0": "objectid = " + oid }),
                     transparent: "true",
                     f: "image",
                     token: credential.token
                 };
 
-                const response = await esriRequest(`${mapServerUrl}/export`, {
-                    query: queryParams,
+                console.log("🗺️ Solicitando exportación a:", exportUrl);
+
+                const response = await esriRequest(exportUrl, {
+                    query: params,
                     responseType: "array-buffer"
                 });
 
-                // Crear el archivo binario y disparar la descarga
+                // Descarga del archivo usando FileSaver
                 const uint8Array = new Uint8Array(response.data);
                 const imageBlob = new Blob([uint8Array], { type: "image/png" });
-                
-                window.saveAs(imageBlob, `Plano_Copropiedad_ID_${oid}.png`);
+                window.saveAs(imageBlob, `Poligono_ID_${oid}.png`);
                 
                 return true;
             } catch (e) {
-                console.error("❌ Error exportando mapa:", e);
+                // Si hay un error, mostramos el detalle técnico en consola
+                console.error("❌ Error detallado en ArcGIS:", e);
+                if (e.details && e.details.messages) {
+                    console.error("Mensaje del servidor:", e.details.messages[0]);
+                }
                 return false;
             }
         }
 
-        // ============================================================
-        // PROCESO PRINCIPAL
-        // ============================================================
         async function generar() {
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
             const urlParams = new URLSearchParams(window.location.search);
-            
-            // Captura el ID de la URL (?objectid=XXX)
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
             if (!oid) {
-                status.textContent = "Error: No se recibió ID de registro.";
+                status.textContent = "Error: No se recibió ID.";
                 return;
             }
 
             if (loader) loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Validando identidad ArcGIS...";
+                status.textContent = "🔐 Validando identidad institucional...";
 
-                // Consultamos el servicio pidiendo la GEOMETRÍA
                 const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
                     query: {
                         objectIds: oid,
@@ -103,28 +99,22 @@
                 const feature = response.data.features[0];
 
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando y descargando imagen PNG...";
+                    status.textContent = "🗺️ Generando y descargando PNG...";
                     const exito = await descargarMapaPNG(oid, feature.geometry);
-                    
-                    if (exito) {
-                        status.textContent = "✅ Imagen descargada con éxito.";
-                    } else {
-                        status.textContent = "❌ Error al generar la imagen.";
-                    }
+                    status.textContent = exito ? "✅ Descarga exitosa" : "❌ Error en generación";
                 } else {
-                    status.textContent = "⚠️ El registro no tiene polígono asociado.";
+                    status.textContent = "⚠️ El registro no tiene polígono.";
                 }
 
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ Error: " + error.message;
+                status.textContent = "❌ " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
 
-        // Ejecutar inmediatamente
         generar();
     });
 })();
