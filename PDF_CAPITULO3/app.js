@@ -12,7 +12,7 @@
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
         
         const CONVERT_API_SECRET = "TU_SECRET_REAL"; 
-        const APP_ID_ARCGIS = "TU_APP_ID_REAL"; 
+        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
