@@ -13,7 +13,9 @@
         // ============================================================
         const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
-        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; // <--- PEGA AQUÍ TU ID DE CLIENTE REGISTRADO
+        
+        const CONVERT_API_SECRET = "TU_SECRET_REAL"; 
+        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
 
         const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
         esriId.registerOAuthInfos([authInfo]);
@@ -34,7 +36,7 @@
 
             const numId = Math.floor(Math.random() * 1e6);
             const rId = "rIdImg" + numId;
-            const imgName = "img_gis_" + numId + ".png";
+            const imgName = "mapa_gis_" + numId + ".png";
             const size = this.options.getSize(null, tagValue, part.value);
 
             this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
@@ -48,42 +50,39 @@
         };
 
         // ============================================================
-        // 2. FUNCIONES AUXILIARES
+        // 2. EXPORTACIÓN DE MAPA (PNG)
         // ============================================================
-        function sanitize(str) {
-            if (str === null || str === undefined) return "";
-            const temp = document.createElement('div');
-            temp.textContent = str;
-            return temp.innerHTML;
-        }
-
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.5);
+                const ext = poly.extent.expand(2.8);
                 const mapServerUrl = FEATURE_LAYER_URL.split("/FeatureServer")[0] + "/MapServer";
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
                 const response = await esriRequest(`${mapServerUrl}/export`, {
                     query: {
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                        bboxSR: JSON.stringify(ext.spatialReference),
+                        bboxSR: ext.spatialReference.wkid || 102100,
                         layers: "show:0",
                         layerDefs: JSON.stringify({"0": `objectid = ${oid}`}),
-                        size: "1200,900", format: "png32", transparent: "true", f: "image", token: credential.token
+                        size: "1200,900", format: "png32", transparent: "true", f: "image",
+                        token: credential.token
                     },
                     responseType: "array-buffer"
                 });
 
                 const uint8Array = new Uint8Array(response.data);
-                // Bajar PNG por separado
-                window.saveAs(new Blob([uint8Array], { type: "image/png" }), `Plano_ID_${oid}.png`);
+                // Bajar PNG por separado con un pequeño delay para evitar bloqueo del navegador
+                setTimeout(() => {
+                    window.saveAs(new Blob([uint8Array], { type: "image/png" }), `Mapa_Poligono_${oid}.png`);
+                }, 500);
+                
                 return uint8Array;
-            } catch (e) { console.error("Error mapa:", e); return null; }
+            } catch (e) { console.error("Error exportando mapa:", e); return null; }
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
-            const getLabel = (field, val) => (domainMap[field] && domainMap[field][val] !== undefined) ? domainMap[field][val] : val;
+            const getLabel = (f, v) => (domainMap[f] && domainMap[f][v] !== undefined) ? domainMap[f][v] : v;
             let partidas = [
                 { nombre: "A. Áreas Verdes y Equipamiento", p: rawData.a_ponderado, int: getLabel("tipo_intervencion", rawData.tipo_intervencion) },
                 { nombre: "B. Cierres Perimetrales", p: rawData.b_ponderado, int: getLabel("tipo_intervencion_perimetrales", rawData.tipo_intervencion_perimetrales) },
@@ -96,7 +95,7 @@
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre, p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000", int: sanitize(item.int)
+                nombre: item.nombre, p: !isNaN(item.p) ? parseFloat(item.p).toFixed(4) : "0.0000", int: (item.int === null || item.int === undefined) ? "" : item.int
             }));
         }
 
@@ -109,7 +108,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
-            if (!oid) { status.textContent = "Error: Falta ID."; return; }
+            if (!oid) { status.textContent = "ID no detectado."; return; }
             if (loader) loader.style.display = "block";
 
             try {
@@ -130,11 +129,11 @@
                 // 1. Mapa
                 let mapaBuffer = null;
                 if (feature.geometry) {
-                    status.textContent = "🗺️ Generando y bajando imagen PNG...";
+                    status.textContent = "🗺️ Generando mapa...";
                     mapaBuffer = await obtenerImagenMapa(oid, feature.geometry);
                 }
 
-                // 2. Atributos y Dominios
+                // 2. Dominios
                 const domainMap = {};
                 serviceMeta.data.fields.forEach(f => {
                     if (f.domain?.codedValues) {
@@ -145,33 +144,41 @@
 
                 if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
 
+                // 3. Atributos (MAPEADOS A MINÚSCULAS Y MAYÚSCULAS PARA EL WORD)
                 const attr = {};
                 Object.keys(rawData).forEach(key => {
                     let val = rawData[key];
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
-                    const sVal = sanitize(val);
-                    attr[key.toUpperCase()] = sVal;
+                    
+                    const finalVal = (val === null || val === undefined) ? "" : val;
+                    attr[key] = finalVal; // Para tags [[nombre_conjunto]]
+                    attr[key.toUpperCase()] = finalVal; // Para tags [[NOMBRE_CONJUNTO]]
                 });
 
-                if (mapaBuffer) attr["MAPA_POLIGONO"] = mapaBuffer;
+                if (mapaBuffer) {
+                    attr["MAPA_POLIGONO"] = mapaBuffer;
+                    attr["mapa_poligono"] = mapaBuffer;
+                }
 
-                // 3. Lógica de Checks ☑
+                // 4. Lógica de Checks ☑
                 const mapaChecks = { "PLAGAS": "requiere_plagas", "ASBELTO_CUBIERTA": "requiere_asbesto_cubierta", "ASBELTO_FACHADA": "requiere_asbesto_fachada", "ASBELTO_LOGGIA": "requiere_asbesto_logia", "ASBELTO_REDES": "requiere_asbesto_redes", "RIESGO_REDES": "riesgo_redes_grave_deterioro", "RIESGO_ESTRUCTURA": "riesgo_estructura_grave_deterioro", "RIESGO_ESCALERAS": "riesgo_escaleras_grave_deterioro", "RIESGO_TECHUMBRE": "riesgo_techumbre_grave_deterioro", "REGULACION": "requiere_regularizacion" };
                 Object.keys(mapaChecks).forEach(tag => {
-                    const val = String(rawData[mapaChecks[tag]] || "").toLowerCase();
-                    attr[tag] = (val.includes("si") || val.includes("sí")) ? "☑" : "☐";
+                    const valorArcGIS = String(rawData[mapaChecks[tag]] || "").toLowerCase();
+                    const check = (valorArcGIS.includes("si") || valorArcGIS.includes("sí")) ? "☑" : "☐";
+                    attr[tag] = check;
+                    attr[tag.toLowerCase()] = check;
                 });
 
                 attr.tabla_priorizada = prepararTablaPriorizada(rawData, domainMap);
 
-                // 4. GENERAR WORD
+                // 5. WORD
                 status.textContent = "📝 Generando reporte oficial...";
                 const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
                 const doc = new window.docxtemplater(new window.PizZip(template), {
                     delimiters: { start: "[[", end: "]]" },
                     modules: [new MyImageModule({
-                        getSize: (img, val, tagName) => tagName === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
+                        getSize: (img, val, tagName) => tagName.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200]
                     })],
                     nullGetter: () => ""
                 });
@@ -180,14 +187,14 @@
                 doc.render();
 
                 const out = doc.getZip().generate({ type: "blob" });
-                window.saveAs(out, `Ficha_Priorizacion_${oid}.docx`);
+                window.saveAs(out, `Ficha_Copropiedad_${oid}.docx`);
                 
-                status.textContent = "✅ ¡Reporte generado con éxito!";
+                status.textContent = "✅ ¡Proceso completado!";
                 if (loader) loader.style.display = "none";
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ " + error.message;
+                status.textContent = "❌ Error: " + error.message;
                 if (loader) loader.style.display = "none";
             }
         }
