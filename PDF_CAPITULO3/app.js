@@ -92,18 +92,18 @@
         function prepararTablaPriorizada(rawData, domainMap) {
             const getLabel = (f, v) => (domainMap[f] && domainMap[f][v] !== undefined) ? domainMap[f][v] : v;
             let partidas = [
-                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), int: getLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
-                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), int: getLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
-                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), int: getLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre")) },
-                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), int: getLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores")) },
-                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), int: getLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
-                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), int: getLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria")) },
-                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), int: getLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios")) },
-                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), int: "No aplica" }
+                { nombre: "A. Áreas Verdes y Equipamiento", p: getVal(rawData, "a_ponderado"), intervencion: getLabel("tipo_intervencion", getVal(rawData, "tipo_intervencion")) },
+                { nombre: "B. Cierres Perimetrales", p: getVal(rawData, "b_ponderado"), intervencion: getLabel("tipo_intervencion_perimetrales", getVal(rawData, "tipo_intervencion_perimetrales")) },
+                { nombre: "C. Techumbre", p: getVal(rawData, "c_ponderado"), intervencion: getLabel("tipo_intervencion_techumbre", getVal(rawData, "tipo_intervencion_techumbre")) },
+                { nombre: "D. Ascensores, Escaleras y/o Circulaciones", p: getVal(rawData, "d_ponderado"), intervencion: getLabel("tipo_intervencion_ascensores", getVal(rawData, "tipo_intervencion_ascensores")) },
+                { nombre: "E. Fachadas y/o Muros", p: getVal(rawData, "e_ponderado"), intervencion: getLabel("tipo_intervencion_fachada", getVal(rawData, "tipo_intervencion_fachada")) },
+                { nombre: "F. Sistemas de Iluminación", p: getVal(rawData, "f_ponderado"), intervencion: getLabel("tipo_intervencion_iluminaria", getVal(rawData, "tipo_intervencion_iluminaria")) },
+                { nombre: "G. Redes de Servicio", p: getVal(rawData, "g_ponderado"), intervencion: getLabel("Tipo_Intervencion_Redes_servicios", getVal(rawData, "Tipo_Intervencion_Redes_servicios")) },
+                { nombre: "K. Accesibilidad Universal", p: getVal(rawData, "k_ponderado"), intervencion: "No aplica" }
             ];
             partidas.sort((a, b) => parseFloat(b.p || 0) - parseFloat(a.p || 0));
             return partidas.map(item => ({
-                nombre: item.nombre, p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", int: (item.int || "")
+                nombre: item.nombre, p: !isNaN(parseFloat(item.p)) ? parseFloat(item.p).toFixed(4) : "0.0000", intervencion: (item.intervencion || "")
             }));
         }
 
