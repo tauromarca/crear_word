@@ -16,6 +16,22 @@
         esriId.registerOAuthInfos([authInfo]);
 
         // ============================================================
+        // FUNCIONES DE UTILIDAD (Definidas al inicio para evitar ReferenceError)
+        // ============================================================
+        function sanitize(str) {
+            if (str === null || str === undefined) return "";
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
+        function getVal(obj, fieldName) {
+            if (!obj) return "";
+            const key = Object.keys(obj).find(k => k.toLowerCase() === fieldName.toLowerCase());
+            return key ? obj[key] : "";
+        }
+
+        // ============================================================
         // 1. MÓDULO DE IMAGEN v4
         // ============================================================
         function MyImageModule(options) { this.options = options || {}; }
@@ -42,14 +58,8 @@
         };
 
         // ============================================================
-        // 2. UTILIDADES DE BÚSQUEDA (Evita campos en blanco)
+        // 2. EXPORTACIÓN DE MAPA
         // ============================================================
-        function getVal(obj, fieldName) {
-            if (!obj) return "";
-            const key = Object.keys(obj).find(k => k.toLowerCase() === fieldName.toLowerCase());
-            return key ? obj[key] : "";
-        }
-
         async function obtenerImagenMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
@@ -62,7 +72,7 @@
                         bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
                         bboxSR: ext.spatialReference.wkid || 102100,
                         layers: "show:0",
-                        layerDefs: `{"0":"objectid=${oid}"}`, 
+                        layerDefs: `{"0":"objectid=${oid}"}`, // CORREGIDO: Sintaxis para detectar la variable oid
                         size: "1000,800", format: "png32", transparent: "true", f: "image",
                         token: credential.token
                     },
@@ -71,7 +81,7 @@
 
                 const uint8Array = new Uint8Array(response.data);
                 
-                // Forzar descarga PNG
+                // DESCARGAR PNG POR SEPARADO
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(new Blob([uint8Array], { type: "image/png" }));
                 link.download = `Mapa_Copropiedad_${oid}.png`;
@@ -79,12 +89,6 @@
                 
                 return uint8Array;
             } catch (e) { console.error("❌ Error exportando mapa:", e); return null; }
-        }
-        function sanitize(str) {
-            if (str === null || str === undefined) return "";
-            const temp = document.createElement('div');
-            temp.textContent = str;
-            return temp.innerHTML;
         }
 
         function prepararTablaPriorizada(rawData, domainMap) {
@@ -121,11 +125,15 @@
             if (loader) loader.style.display = "block";
 
             try {
+                status.textContent = "🔐 Validando identidad institucional...";
+
                 const [serviceMeta, response] = await Promise.all([
                     esriRequest(FEATURE_LAYER_URL, { query: { f: "json" }, responseType: "json" }),
                     esriRequest(`${FEATURE_LAYER_URL}/query`, { query: { objectIds: oid, outFields: "*", returnGeometry: true, f: "json" }, responseType: "json" })
                 ]);
 
+                if (!response.data.features.length) throw new Error("Registro no encontrado.");
+                
                 const feature = response.data.features[0];
                 const rawData = feature.attributes;
 
@@ -138,12 +146,16 @@
 
                 // 2. Diccionario de Dominios
                 const domainMap = {};
-                serviceMeta.data.fields.forEach(f => {
-                    if (f.domain?.codedValues) {
-                        domainMap[f.name] = {};
-                        f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
-                    }
-                });
+                if (serviceMeta.data.fields) {
+                    serviceMeta.data.fields.forEach(f => {
+                        if (f.domain?.codedValues) {
+                            domainMap[f.name] = {};
+                            f.domain.codedValues.forEach(cv => domainMap[f.name][cv.code] = cv.name);
+                        }
+                    });
+                }
+
+                if (window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
 
                 // 3. Atributos para el Word
                 const attr = {};
@@ -152,12 +164,12 @@
                     if (domainMap[key] && domainMap[key][val] !== undefined) val = domainMap[key][val];
                     if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
                     attr[key.toLowerCase()] = (val === null || val === undefined) ? "" : val;
-                    attr[key.toUpperCase()] = attr[key.toLowerCase()];
+                    attr[key.toUpperCase()] = sanitize(val);
                 });
 
                 if (mapaBuffer) {
-                    attr["mapa_poligono"] = mapaBuffer;
                     attr["MAPA_POLIGONO"] = mapaBuffer;
+                    attr["mapa_poligono"] = mapaBuffer;
                 }
 
                 // 4. Checks ☑
@@ -174,8 +186,8 @@
 
                 // 5. Word
                 status.textContent = "📝 Generando reporte Word...";
-                const template = await fetch(PLANTILLA_URL).then(r => r.arrayBuffer());
-                const doc = new window.docxtemplater(new window.PizZip(template), {
+                const templateResp = await fetch(PLANTILLA_URL);
+                const doc = new window.docxtemplater(new window.PizZip(await templateResp.arrayBuffer()), {
                     delimiters: { start: "[[", end: "]]" },
                     modules: [new MyImageModule({ getSize: (i, v, n) => n.toUpperCase() === "MAPA_POLIGONO" ? [550, 420] : [300, 200] })],
                     nullGetter: () => ""
