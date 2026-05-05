@@ -44,9 +44,8 @@
 
                 // 🔹 MAPA SIN CAPA (IMPORTANTE)
                 const map = new Map({
-                    basemap: "gray-vector"
+                  basemap: "hybrid"   // 👈 mejor opción general
                 });
-
                 const view = new MapView({
                     container: "map-view",
                     map: map,
