@@ -3,53 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <title>Generador de Imagen de Polígono</title>
-    <!-- Cargamos la CSS de ArcGIS -->
+
+    <!-- ArcGIS CSS -->
     <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
-        #status { margin-bottom: 15px; font-weight: bold; color: #0056b3; }
-        
-        /* Contenedor del mapa (invisible mientras procesa) */
-        #map-view { 
-            width: 100%; height: 500px; border: 1px solid #ddd; 
-            border-radius: 8px; background: #fff; margin-bottom: 20px;
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
         }
 
-        /* Vista previa de la imagen final */
-        #final-preview { 
-            display: none; width: 100%; border: 2px solid #27ae60; 
-            border-radius: 8px; margin-bottom: 20px; 
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-width: 900px;
+            margin: auto;
         }
 
-        .btn { 
-            background: #27ae60; color: white; padding: 12px 30px; 
-            border: none; border-radius: 6px; cursor: pointer; 
-            font-size: 16px; font-weight: bold; display: none;
+        #status {
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #0056b3;
         }
-        .btn:hover { background: #219150; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: 10px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #map-view {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        #final-preview {
+            display: none;
+            width: 100%;
+            border: 2px solid #27ae60;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: #27ae60;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .btn:hover {
+            background: #219150;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
+
 <body>
-    <div class="card">
-        <h2>Mapa del Polígono Institucional</h2>
-        <div id="status">Iniciando motor GIS...</div>
-        <div id="loader" class="loader"></div>
+<div class="card">
+    <h2>Mapa del Polígono Institucional</h2>
 
-        <!-- El div donde ArcGIS dibujará el polígono -->
-        <div id="map-view"></div>
+    <div id="status">Iniciando motor GIS...</div>
+    <div id="loader" class="loader"></div>
 
-        <!-- Aquí se mostrará el PNG final generado -->
-        <img id="final-preview" alt="Imagen PNG generada">
+    <div id="map-view"></div>
 
-        <button id="btn-download" class="btn">Descargar Archivo PNG</button>
-    </div>
+    <img id="final-preview" alt="Imagen PNG generada">
 
-    <!-- Librerías -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://js.arcgis.com/4.29/"></script>
-    <script src="app.js"></script>
+    <button id="btn-download" class="btn">Descargar Archivo PNG</button>
+</div>
+
+<!-- Librerías -->
+<script src="https://js.arcgis.com/4.29/"></script>
+<script src="app.js"></script>
+
 </body>
 </html>
