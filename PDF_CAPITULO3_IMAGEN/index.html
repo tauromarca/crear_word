@@ -2,39 +2,41 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador DTC - Word Edition</title>
-    <!-- CSP Estricta -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.arcgis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.arcgis.com; connect-src 'self' https://*.arcgis.com;">
-    
+    <title>Visualizador de Polígono GIS</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 480px; margin: auto; }
-        h2 { color: #1a365d; margin-bottom: 5px; }
-        #status { margin-top: 25px; font-weight: 600; color: #0056b3; font-size: 1.1em; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: 15px auto; }
+        body { font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 850px; margin: auto; }
+        #status { margin-bottom: 15px; font-weight: bold; color: #0078d4; }
+        #map-container { margin-top: 20px; border: 1px solid #ccc; background: #eee; min-height: 400px; display: flex; align-items: center; justify-content: center; border-radius: 8px; overflow: hidden; }
+        img { max-width: 100%; height: auto; display: none; }
+        .btn-download { 
+            display: none; margin-top: 20px; padding: 12px 25px; 
+            background: #27ae60; color: white; border: none; 
+            border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        .btn-download:hover { background: #219150; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 10px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-
     <div class="card">
-        <h2>Generador de Ficha</h2>
-        <p style="color: #666; margin-top:0;">Exportación Directa a Word</p>
+        <h2>Mapa del Polígono</h2>
+        <div id="status">Iniciando...</div>
         <div id="loader" class="loader"></div>
-        <div id="status">Iniciando sistema institucional...</div>
+
+        <div id="map-container">
+            <img id="map-image" alt="Mapa del Polígono">
+        </div>
+
+        <button id="download-btn" class="btn-download">Bajar Imagen PNG</button>
     </div>
 
-    <!-- Librerías locales -->
-    <script src="pizzip.js"></script>
-    <script src="docxtemplater.js"></script>
+    <!-- Librería para descargar archivos -->
     <script src="FileSaver.min.js"></script>
-
-    <!-- Cargador de ArcGIS -->
+    <!-- API de ArcGIS -->
     <script src="https://js.arcgis.com/4.29/"></script>
-
-    <!-- Lógica de negocio -->
+    <!-- Lógica -->
     <script src="app.js"></script>
-
 </body>
 </html>
