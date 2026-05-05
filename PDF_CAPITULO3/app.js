@@ -5,8 +5,10 @@ require([
     "esri/request",
     "esri/identity/IdentityManager",
     "esri/identity/OAuthInfo",
-    "esri/geometry/Polygon"
-], function(esriRequest, esriId, OAuthInfo, Polygon) {
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic"
+], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic) {
 
 const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
 const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
@@ -16,45 +18,84 @@ const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
 esriId.registerOAuthInfos([authInfo]);
 
 // ============================================================
-// 🔥 GENERAR MAPA PNG (VERSIÓN ESTABLE)
+// 🔥 GENERAR MAPA COMO IMAGEN (VERSIÓN FINAL)
 // ============================================================
-async function obtenerMapaPNG(geometry) {
+async function generarMapaComoImagen(geometry) {
 
-    try {
+    return new Promise((resolve, reject) => {
 
-        const poly = new Polygon(geometry);
-        const ext = poly.extent.expand(2);
+        try {
 
-        const url = "https://export.arcgis.com/arcgis/rest/services/World_Street_Map/MapServer/export";
+            // contenedor oculto dinámico
+            const container = document.createElement("div");
+            container.style.width = "1200px";
+            container.style.height = "900px";
+            container.style.position = "absolute";
+            container.style.top = "-9999px";
+            document.body.appendChild(container);
 
-        const params = new URLSearchParams({
-            bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-            bboxSR: ext.spatialReference.wkid || 102100,
-            imageSR: ext.spatialReference.wkid || 102100,
-            size: "1200,900",
-            format: "png32",
-            transparent: "false",
-            f: "image"
-        });
+            const map = new Map({
+                basemap: "streets-vector"
+            });
 
-        const fullUrl = `${url}?${params.toString()}`;
+            const view = new MapView({
+                container: container,
+                map: map,
+                ui: { components: [] }
+            });
 
-        console.log("🗺️ URL mapa:", fullUrl);
+            view.when(async () => {
 
-        const response = await fetch(fullUrl);
+                const graphic = new Graphic({
+                    geometry: geometry,
+                    symbol: {
+                        type: "simple-fill",
+                        color: [0, 197, 255, 0.3],
+                        outline: {
+                            color: [0, 197, 255, 1],
+                            width: 2
+                        }
+                    }
+                });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+                view.graphics.add(graphic);
+
+                await view.goTo(geometry.extent.expand(2));
+
+                // esperar carga del basemap
+                setTimeout(async () => {
+
+                    const screenshot = await view.takeScreenshot({
+                        format: "png",
+                        width: 1200,
+                        height: 900
+                    });
+
+                    // convertir base64 → Uint8Array
+                    const base64 = screenshot.dataUrl.split(",")[1];
+                    const binary = atob(base64);
+                    const len = binary.length;
+                    const bytes = new Uint8Array(len);
+
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binary.charCodeAt(i);
+                    }
+
+                    // limpiar
+                    view.destroy();
+                    container.remove();
+
+                    resolve(bytes);
+
+                }, 1500);
+
+            });
+
+        } catch (e) {
+            reject(e);
         }
 
-        const buffer = await response.arrayBuffer();
-
-        return new Uint8Array(buffer);
-
-    } catch (e) {
-        console.error("❌ Error generando mapa:", e);
-        return null;
-    }
+    });
 }
 
 // ============================================================
@@ -159,7 +200,7 @@ async function generar() {
 
         status.textContent = "🗺️ Generando mapa...";
 
-        const mapaBuffer = await obtenerMapaPNG(feature.geometry);
+        const mapaBuffer = await generarMapaComoImagen(feature.geometry);
 
         if (!mapaBuffer) {
             throw new Error("No se pudo generar la imagen del mapa");
@@ -172,7 +213,6 @@ async function generar() {
             attr[k.toUpperCase()] = feature.attributes[k];
         });
 
-        // 🔥 AQUÍ SE INSERTA LA IMAGEN
         attr["MAPA_POLIGONO"] = mapaBuffer;
 
         status.textContent = "📝 Generando Word...";
@@ -185,10 +225,7 @@ async function generar() {
                 delimiters: { start: "[[", end: "]]" },
                 modules: [
                     new MyImageModule({
-                        getSize: (img, val, tagName) =>
-                            tagName.toUpperCase() === "MAPA_POLIGONO"
-                                ? [550, 420]
-                                : [300, 200]
+                        getSize: () => [550, 420]
                     })
                 ],
                 nullGetter: () => ""
