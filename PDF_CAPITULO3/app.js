@@ -7,9 +7,8 @@ require([
     "esri/identity/OAuthInfo",
     "esri/Map",
     "esri/views/MapView",
-    "esri/Graphic",
-    "esri/geometry/Polygon"
-], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic, Polygon) {
+    "esri/Graphic"
+], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic) {
 
 const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
 const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
@@ -21,18 +20,22 @@ esriId.registerOAuthInfos([authInfo]);
 // ============================================================
 // 🔥 GENERAR MAPA COMO IMAGEN (ROBUSTO)
 // ============================================================
-async function generarMapaComoImagen(geometryJSON) {
+async function generarMapaComoImagen(featureGeometry) {
 
     return new Promise((resolve, reject) => {
 
         try {
 
-            // ✔ convertir a geometría real
-            const geometry = new Polygon(geometryJSON);
-
-            if (!geometry || !geometry.extent) {
+            if (!featureGeometry || !featureGeometry.rings) {
                 return reject("Geometría inválida");
             }
+
+            // ✔ geometría autocasteable segura
+            const geometry = {
+                type: "polygon",
+                rings: featureGeometry.rings,
+                spatialReference: featureGeometry.spatialReference || { wkid: 4326 }
+            };
 
             // contenedor oculto
             const container = document.createElement("div");
@@ -68,36 +71,35 @@ async function generarMapaComoImagen(geometryJSON) {
 
                 view.graphics.add(graphic);
 
-                await view.goTo(geometry.extent.clone().expand(2));
+                // ✔ centrado robusto
+                await view.goTo({
+                    target: geometry,
+                    padding: 50
+                });
 
-                // 🔥 esperar render real (mejor que setTimeout fijo)
-                view.whenLayerView(view.map.basemap.baseLayers.getItemAt(0))
-                    .then(() => {
+                // ✔ esperar render (estable)
+                setTimeout(async () => {
 
-                        setTimeout(async () => {
-
-                            const screenshot = await view.takeScreenshot({
-                                format: "png",
-                                width: 1200,
-                                height: 900
-                            });
-
-                            const base64 = screenshot.dataUrl.split(",")[1];
-                            const binary = atob(base64);
-                            const bytes = new Uint8Array(binary.length);
-
-                            for (let i = 0; i < binary.length; i++) {
-                                bytes[i] = binary.charCodeAt(i);
-                            }
-
-                            view.destroy();
-                            container.remove();
-
-                            resolve(bytes);
-
-                        }, 1000);
-
+                    const screenshot = await view.takeScreenshot({
+                        format: "png",
+                        width: 1200,
+                        height: 900
                     });
+
+                    const base64 = screenshot.dataUrl.split(",")[1];
+                    const binary = atob(base64);
+                    const bytes = new Uint8Array(binary.length);
+
+                    for (let i = 0; i < binary.length; i++) {
+                        bytes[i] = binary.charCodeAt(i);
+                    }
+
+                    view.destroy();
+                    container.remove();
+
+                    resolve(bytes);
+
+                }, 1200);
 
             });
 
@@ -190,7 +192,7 @@ async function generar() {
         status.textContent = "🔐 Conectando...";
         await esriId.getCredential("https://www.arcgis.com/sharing");
 
-        status.textContent = "📡 Consultando...";
+        status.textContent = "📡 Consultando datos...";
 
         const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
             query: {
@@ -203,6 +205,10 @@ async function generar() {
         });
 
         const feature = response.data.features[0];
+
+        if (!feature.geometry) {
+            throw "No existe geometría";
+        }
 
         status.textContent = "🗺️ Generando mapa...";
 

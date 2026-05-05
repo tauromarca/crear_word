@@ -1,40 +1,39 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Generador DTC</title>
+<meta charset="UTF-8">
+<title>Generador DTC</title>
 
-    <!-- CSP CORRECTA PARA ARCGIS -->
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' https://js.arcgis.com 'unsafe-eval';
-        worker-src blob:;
-        style-src 'self' 'unsafe-inline';
-        img-src 'self' data: https://*.arcgis.com;
-        connect-src https://*.arcgis.com;
-    ">
+<meta http-equiv="Content-Security-Policy" content="
+default-src 'self';
+script-src 'self' https://js.arcgis.com 'unsafe-eval';
+worker-src blob:;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https://*.arcgis.com;
+connect-src https://*.arcgis.com;
+">
 
-    <style>
-        body {
-            font-family: Arial;
-            background: #f4f6f9;
-            text-align: center;
-            padding-top: 40px;
-        }
-        .card {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            width: 400px;
-            margin: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        #status {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #0056b3;
-        }
-    </style>
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f9;
+    text-align: center;
+    padding-top: 40px;
+}
+.card {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    width: 400px;
+    margin: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+#status {
+    margin-top: 15px;
+    font-weight: bold;
+    color: #0056b3;
+}
+</style>
 </head>
 
 <body>
