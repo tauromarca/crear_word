@@ -55,7 +55,7 @@ async function generarMapaComoImagen(featureGeometry) {
                 ui: { components: [] }
             });
 
-            await view.when(async () => {
+            view.when(async () => {
 
                 const graphic = new Graphic({
                     geometry: geometry,
@@ -69,7 +69,7 @@ async function generarMapaComoImagen(featureGeometry) {
                     }
                 });
 
-                await view.graphics.add(graphic);
+                view.graphics.add(graphic);
 
                 // ✔ centrado robusto
                 await view.goTo({
@@ -133,17 +133,21 @@ MyImageModule.prototype.render = function(part, options) {
 
     const tagValue = options.scopeManager.getValue(part.value);
 
-    if (!tagValue || typeof tagValue === 'string') {
-        return { value: "" };
-    }
-
+    //if (!tagValue || typeof tagValue === 'string') {
+    //    return { value: "" };
+    //}
+    if (!tagValue || !(tagValue instanceof Uint8Array)) {
+    console.warn("⚠️ Imagen inválida:", tagValue);
+    return { value: "" };
+}
     const numId = Math.floor(Math.random() * 1e6);
     const rId = "rIdImg" + numId;
     const imgName = "mapa_" + numId + ".png";
 
     const size = this.options.getSize(null, tagValue, part.value);
 
-    this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
+    //this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
+    this.doc.zip.file("word/media/" + imgName, tagValue);
 
     const relsPath = "word/_rels/document.xml.rels";
     let rels = this.doc.zip.file(relsPath).asText();
@@ -212,15 +216,21 @@ async function generar() {
 
         status.textContent = "🗺️ Generando mapa...";
 
-        const mapaBuffer = await generarMapaComoImagen(feature.geometry);
 
+
+        const mapaBuffer = await generarMapaComoImagen(feature.geometry);
+        if (!mapaBuffer || mapaBuffer.length === 0) {
+           throw new Error("Imagen de mapa vacía o no generada");
+        }
+        console.log("📸 Tamaño imagen:", mapaBuffer.length);
         const attr = {};
         Object.keys(feature.attributes).forEach(k => {
             attr[k] = feature.attributes[k];
             attr[k.toUpperCase()] = feature.attributes[k];
         });
 
-        attr["MAPA_POLIGONO"] = mapaBuffer;
+        //attr["MAPA_POLIGONO"] = mapaBuffer;
+        attr["MAPA_POLIGONO"] = new Uint8Array(mapaBuffer);
 
         status.textContent = "📝 Generando Word...";
 
