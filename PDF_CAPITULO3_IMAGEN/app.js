@@ -92,8 +92,12 @@
                 });
 
                 // 🔥 CLAVE: esperar render real
-                await view.whenLayerView(layer);
+                await view.when();
+
+                // Esperar que el mapa deje de actualizarse
                 await view.when(() => !view.updating);
+
+               
 
                 status.textContent = "📸 Generando imagen PNG...";
 
