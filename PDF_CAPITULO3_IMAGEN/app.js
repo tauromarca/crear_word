@@ -8,111 +8,118 @@
         "esri/geometry/Polygon"
     ], function(esriRequest, esriId, OAuthInfo, Polygon) {
 
-        const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
-        const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ"; 
-        let currentBlob = null; // Variable global para guardar la imagen
+        // URL del FeatureServer
+        const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
+        const APP_ID = "V3aGw0JQVKFM6BdJ"; 
+        let globalBlob = null;
 
-        const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
+        const authInfo = new OAuthInfo({ appId: APP_ID, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
-        async function obtenerImagenMapa(oid, geometry) {
+        // FUNCIÓN CLAVE: Exportación con sintaxis estricta para ArcGIS Online
+        async function exportarMapa(oid, geometry) {
             try {
                 const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.5); 
+                const ext = poly.extent.expand(2.5); // Margen de visibilidad
                 
-                // LIMPIEZA DE URL (Eliminamos /0 y FeatureServer)
-                const baseUrl = FEATURE_LAYER_URL.split("/rest/services/")[0];
-                const servicePath = FEATURE_LAYER_URL.split("/rest/services/")[1].split("/FeatureServer")[0];
-                const mapServerUrl = `${baseUrl}/rest/services/${servicePath}/MapServer/export`;
+                // Convertir la URL de FeatureServer a MapServer raíz
+                const mapServerUrl = FS_URL.replace("/FeatureServer/0", "/MapServer");
                 
+                // Obtener token activo
                 const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
 
+                // Construcción manual de parámetros para evitar el error 400 "f"
                 const queryParams = {
+                    f: "image",
+                    format: "png32",
+                    size: "1200,900",
                     bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
                     bboxSR: ext.spatialReference.wkid || 102100,
                     layers: "show:0",
-                    layerDefs: `{"0":"objectid = ${oid}"}`, // Sintaxis JSON estricta
-                    size: "1200,900",
-                    format: "png32",
+                    // layerDefs debe ser un string JSON {"ID_CAPA":"FILTRO"}
+                    layerDefs: JSON.stringify({ "0": "objectid = " + oid }),
                     transparent: "true",
-                    f: "image",
                     token: credential.token
                 };
 
-                const response = await esriRequest(mapServerUrl, {
+                const response = await esriRequest(`${mapServerUrl}/export`, {
                     query: queryParams,
-                    responseType: "blob" // Cambiado a blob para visualización directa
+                    responseType: "blob"
                 });
 
                 return response.data;
             } catch (e) {
-                console.error("❌ Fallo crítico en ArcGIS:", e);
+                console.error("❌ Fallo técnico al exportar:", e);
                 return null;
             }
         }
 
-        async function iniciar() {
+        async function ejecutar() {
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
-            const imgElement = document.getElementById("map-image");
-            const btnDownload = document.getElementById("download-btn");
-            
+            const img = document.getElementById("result-img");
+            const placeholder = document.getElementById("placeholder-text");
+            const btn = document.getElementById("btn-download");
+
             const urlParams = new URLSearchParams(window.location.search);
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
             if (!oid) {
-                status.textContent = "Error: No se recibió ID de registro.";
+                status.textContent = "Error: Falta ID de registro (?objectid=X)";
                 return;
             }
 
             loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Validando identidad institucional...";
+                status.textContent = "🔐 Autenticando con ArcGIS Online...";
 
-                const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
-                    query: { objectIds: oid, outFields: "objectid", returnGeometry: true, f: "json" },
+                // 1. Obtener la geometría del polígono
+                const response = await esriRequest(`${FS_URL}/query`, {
+                    query: {
+                        objectIds: oid,
+                        outFields: "objectid",
+                        returnGeometry: true,
+                        f: "json"
+                    },
                     responseType: "json"
                 });
 
-                if (!response.data.features?.length) throw new Error("Registro no encontrado.");
-                
+                if (!response.data.features?.length) throw new Error("No se encontró el registro.");
                 const feature = response.data.features[0];
 
-                if (feature.geometry) {
-                    status.textContent = "🗺️ Generando mapa del polígono...";
-                    
-                    const blob = await obtenerImagenMapa(oid, feature.geometry);
-                    
-                    if (blob) {
-                        currentBlob = blob; // Guardamos para la descarga
-                        
-                        // Mostrar en pantalla
-                        const url = URL.createObjectURL(blob);
-                        imgElement.src = url;
-                        imgElement.style.display = "block";
-                        
-                        // Activar botón de descarga
-                        btnDownload.style.display = "inline-block";
-                        btnDownload.onclick = () => window.saveAs(currentBlob, `Poligono_ID_${oid}.png`);
-                        
-                        status.textContent = "✅ Mapa generado exitosamente.";
-                    } else {
-                        status.textContent = "❌ No se pudo generar la imagen.";
-                    }
-                } else {
-                    status.textContent = "⚠️ El registro no tiene geometría.";
-                }
+                if (!feature.geometry) throw new Error("El registro no tiene un polígono dibujado.");
 
-                loader.style.display = "none";
+                // 2. Exportar la imagen
+                status.textContent = "🗺️ Renderizando polígono...";
+                const blob = await exportarMapa(oid, feature.geometry);
+
+                if (blob) {
+                    globalBlob = blob;
+                    
+                    // Mostrar imagen en pantalla
+                    const imageUrl = URL.createObjectURL(blob);
+                    img.src = imageUrl;
+                    img.style.display = "block";
+                    placeholder.style.display = "none";
+
+                    // Activar botón de descarga
+                    btn.style.display = "inline-block";
+                    btn.onclick = () => window.saveAs(globalBlob, `Poligono_ID_${oid}.png`);
+
+                    status.textContent = "✅ ¡Mapa generado con éxito!";
+                } else {
+                    status.textContent = "❌ Falló la creación del mapa.";
+                }
 
             } catch (error) {
                 console.error(error);
-                status.textContent = "❌ " + error.message;
+                status.textContent = "❌ Error: " + error.message;
+            } finally {
                 loader.style.display = "none";
             }
         }
 
-        iniciar();
+        ejecutar();
     });
 })();
