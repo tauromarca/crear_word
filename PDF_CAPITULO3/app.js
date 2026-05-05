@@ -7,8 +7,9 @@ require([
     "esri/identity/OAuthInfo",
     "esri/Map",
     "esri/views/MapView",
-    "esri/Graphic"
-], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic) {
+    "esri/Graphic",
+    "esri/geometry/Polygon"
+], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic, Polygon) {
 
 const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
 const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
@@ -18,15 +19,22 @@ const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
 esriId.registerOAuthInfos([authInfo]);
 
 // ============================================================
-// 🔥 GENERAR MAPA COMO IMAGEN (VERSIÓN FINAL)
+// 🔥 GENERAR MAPA COMO IMAGEN (ROBUSTO)
 // ============================================================
-async function generarMapaComoImagen(geometry) {
+async function generarMapaComoImagen(geometryJSON) {
 
     return new Promise((resolve, reject) => {
 
         try {
 
-            // contenedor oculto dinámico
+            // ✔ convertir a geometría real
+            const geometry = new Polygon(geometryJSON);
+
+            if (!geometry || !geometry.extent) {
+                return reject("Geometría inválida");
+            }
+
+            // contenedor oculto
             const container = document.createElement("div");
             container.style.width = "1200px";
             container.style.height = "900px";
@@ -60,34 +68,36 @@ async function generarMapaComoImagen(geometry) {
 
                 view.graphics.add(graphic);
 
-                await view.goTo(geometry.extent.expand(2));
+                await view.goTo(geometry.extent.clone().expand(2));
 
-                // esperar carga del basemap
-                setTimeout(async () => {
+                // 🔥 esperar render real (mejor que setTimeout fijo)
+                view.whenLayerView(view.map.basemap.baseLayers.getItemAt(0))
+                    .then(() => {
 
-                    const screenshot = await view.takeScreenshot({
-                        format: "png",
-                        width: 1200,
-                        height: 900
+                        setTimeout(async () => {
+
+                            const screenshot = await view.takeScreenshot({
+                                format: "png",
+                                width: 1200,
+                                height: 900
+                            });
+
+                            const base64 = screenshot.dataUrl.split(",")[1];
+                            const binary = atob(base64);
+                            const bytes = new Uint8Array(binary.length);
+
+                            for (let i = 0; i < binary.length; i++) {
+                                bytes[i] = binary.charCodeAt(i);
+                            }
+
+                            view.destroy();
+                            container.remove();
+
+                            resolve(bytes);
+
+                        }, 1000);
+
                     });
-
-                    // convertir base64 → Uint8Array
-                    const base64 = screenshot.dataUrl.split(",")[1];
-                    const binary = atob(base64);
-                    const len = binary.length;
-                    const bytes = new Uint8Array(len);
-
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binary.charCodeAt(i);
-                    }
-
-                    // limpiar
-                    view.destroy();
-                    container.remove();
-
-                    resolve(bytes);
-
-                }, 1500);
 
             });
 
@@ -160,7 +170,7 @@ MyImageModule.prototype.render = function(part, options) {
         </a:graphic>
         </wp:inline></w:drawing></w:run>`
     };
-};
+}
 
 // ============================================================
 // MAIN
@@ -180,7 +190,7 @@ async function generar() {
         status.textContent = "🔐 Conectando...";
         await esriId.getCredential("https://www.arcgis.com/sharing");
 
-        status.textContent = "📡 Consultando datos...";
+        status.textContent = "📡 Consultando...";
 
         const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
             query: {
@@ -192,21 +202,12 @@ async function generar() {
             responseType: "json"
         });
 
-        if (!response.data.features.length) {
-            throw new Error("No se encontró el registro");
-        }
-
         const feature = response.data.features[0];
 
         status.textContent = "🗺️ Generando mapa...";
 
         const mapaBuffer = await generarMapaComoImagen(feature.geometry);
 
-        if (!mapaBuffer) {
-            throw new Error("No se pudo generar la imagen del mapa");
-        }
-
-        // atributos
         const attr = {};
         Object.keys(feature.attributes).forEach(k => {
             attr[k] = feature.attributes[k];
@@ -223,12 +224,9 @@ async function generar() {
             new window.PizZip(await templateResp.arrayBuffer()),
             {
                 delimiters: { start: "[[", end: "]]" },
-                modules: [
-                    new MyImageModule({
-                        getSize: () => [550, 420]
-                    })
-                ],
-                nullGetter: () => ""
+                modules: [new MyImageModule({
+                    getSize: () => [550, 420]
+                })]
             }
         );
 
@@ -240,11 +238,11 @@ async function generar() {
             `Reporte_DTC_${oid}.docx`
         );
 
-        status.textContent = "✅ Word generado correctamente";
+        status.textContent = "✅ Completado";
 
     } catch (error) {
         console.error(error);
-        status.textContent = "❌ Error: " + error.message;
+        status.textContent = "❌ " + error;
     }
 }
 
