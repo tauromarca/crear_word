@@ -1,118 +1,252 @@
 (function () {
-    "use strict";
+"use strict";
 
-    require([
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/layers/FeatureLayer",
-        "esri/Graphic",
-        "esri/identity/IdentityManager",
-        "esri/identity/OAuthInfo"
-    ], function(Map, MapView, FeatureLayer, Graphic, esriId, OAuthInfo) {
+require([
+    "esri/request",
+    "esri/identity/IdentityManager",
+    "esri/identity/OAuthInfo",
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic"
+], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic) {
 
-        const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
-        const APP_ID = "V3aGw0JQVKFM6BdJ"; 
-        let view;
+    // ============================================================
+    // CONFIGURACIÓN
+    // ============================================================
+    const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
+    const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
+    const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ";
 
-        const authInfo = new OAuthInfo({ appId: APP_ID, popup: false });
-        esriId.registerOAuthInfos([authInfo]);
+    const authInfo = new OAuthInfo({
+        appId: APP_ID_ARCGIS,
+        popup: false
+    });
 
-        async function ejecutar() {
-            const status = document.getElementById("status");
-            const loader = document.getElementById("loader");
-            const btn = document.getElementById("btn-download");
-            const previewImg = document.getElementById("final-preview");
-            const mapViewDiv = document.getElementById("map-view");
+    esriId.registerOAuthInfos([authInfo]);
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const oid = urlParams.get("objectid") || urlParams.get("oid");
+    // ============================================================
+    // 🔥 GENERAR MAPA COMO IMAGEN (CLAVE)
+    // ============================================================
+    async function generarMapaComoImagen(geometry) {
 
-            if (!oid) {
-                status.textContent = "Error: Falta ID de registro.";
-                return;
+        const container = document.getElementById("map-hidden");
+
+        const map = new Map({
+            basemap: "hybrid" // 👈 mapa real con calles
+        });
+
+        const view = new MapView({
+            container: container,
+            map: map,
+            ui: { components: [] }
+        });
+
+        await view.when();
+
+        const graphic = new Graphic({
+            geometry: geometry,
+            symbol: {
+                type: "simple-fill",
+                color: [255, 0, 0, 0.25],
+                outline: { color: [255, 0, 0, 1], width: 2 }
             }
+        });
 
-            loader.style.display = "block";
+        view.graphics.add(graphic);
 
-            try {
-                status.textContent = "🔐 Autenticando acceso...";
-                await esriId.getCredential("https://www.arcgis.com/sharing");
+        await view.goTo({
+            target: graphic.geometry.extent,
+            padding: 40
+        });
 
-                // 1. Configurar el Mapa y la Capa
-                const layer = new FeatureLayer({
-                    url: FS_URL,
-                    definitionExpression: `objectid = ${oid}`,
-                    renderer: {
-                        type: "simple",
-                        symbol: {
-                            type: "simple-fill",
-                            color: [0, 197, 255, 0.3], // Celeste transparente
-                            outline: { color: [0, 197, 255, 1], width: 2 } // Borde azul
-                        }
-                    }
-                });
+        // Esperar render completo
+        await view.when(() => !view.updating);
 
-                const map = new Map({
-                    basemap: "topo-vector", // Puedes cambiar a "satellite" si prefieres
-                    layers: [layer]
-                });
+        // Espera adicional para tiles
+        await new Promise(r => setTimeout(r, 800));
 
-                view = new MapView({
-                    container: "map-view",
-                    map: map,
-                    ui: { components: [] } // Quitar botones de zoom para imagen limpia
-                });
+        const screenshot = await view.takeScreenshot({
+            format: "png",
+            width: 1000,
+            height: 750
+        });
 
-                status.textContent = "🗺️ Localizando polígono...";
+        // Convertir base64 a Uint8Array
+        const base64 = screenshot.dataUrl.split(",")[1];
+        const binary = atob(base64);
+        const len = binary.length;
+        const buffer = new Uint8Array(len);
 
-                // 2. Esperar a que la capa cargue y centrar la vista
-                await view.when();
-                const query = layer.createQuery();
-                query.where = `objectid = ${oid}`;
-                query.returnGeometry = true;
-                
-                const result = await layer.queryFeatures(query);
-                
-                if (result.features.length === 0) throw new Error("No se encontró el polígono.");
-                
-                const feature = result.features[0];
-                
-                // Centrar el mapa en el polígono con un margen
-                await view.goTo(feature.geometry.extent.expand(2.5));
-                
-                status.textContent = "📸 Generando PNG de alta resolución...";
-
-                // 3. Tomar la "foto" del mapa (Screenshot)
-                // Esperamos un momento para que los tiles del mapa base carguen
-                setTimeout(async () => {
-                    const screenshot = await view.takeScreenshot({
-                        format: "png",
-                        quality: 100,
-                        width: 1200,
-                        height: 900
-                    });
-
-                    // 4. Mostrar en pantalla y preparar descarga
-                    previewImg.src = screenshot.dataUrl;
-                    previewImg.style.display = "block";
-                    mapViewDiv.style.display = "none"; // Ocultamos el mapa interactivo
-
-                    btn.style.display = "inline-block";
-                    btn.onclick = () => {
-                        window.saveAs(screenshot.dataUrl, `Poligono_ID_${oid}.png`);
-                    };
-
-                    status.textContent = "✅ ¡Imagen lista para descargar!";
-                    loader.style.display = "none";
-                }, 2000); // 2 segundos de espera para carga de mapa base
-
-            } catch (error) {
-                console.error(error);
-                status.textContent = "❌ Error: " + error.message;
-                loader.style.display = "none";
-            }
+        for (let i = 0; i < len; i++) {
+            buffer[i] = binary.charCodeAt(i);
         }
 
-        ejecutar();
-    });
+        view.destroy();
+
+        return buffer;
+    }
+
+    // ============================================================
+    // MODULO IMAGEN WORD
+    // ============================================================
+    function MyImageModule(options) { this.options = options || {}; }
+
+    MyImageModule.prototype.optionsTransformer = function(options, doc) {
+        this.doc = doc;
+        return options;
+    };
+
+    MyImageModule.prototype.parse = function(type, data) {
+        if (type === "tag" && data.tag.charAt(0) === "%") {
+            return { type: "placeholder", value: data.tag.substr(1) };
+        }
+        return null;
+    };
+
+    MyImageModule.prototype.render = function(part, options) {
+
+        if (part.type !== "placeholder") return null;
+
+        const tagValue = options.scopeManager.getValue(part.value);
+
+        if (!tagValue || typeof tagValue === 'string') {
+            return { value: "" };
+        }
+
+        const numId = Math.floor(Math.random() * 1e6);
+        const rId = "rIdImg" + numId;
+        const imgName = "mapa_" + numId + ".png";
+
+        const size = this.options.getSize(null, tagValue, part.value);
+
+        this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
+
+        const relsPath = "word/_rels/document.xml.rels";
+        let rels = this.doc.zip.file(relsPath).asText();
+
+        rels = rels.replace(
+            "</Relationships>",
+            `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/></Relationships>`
+        );
+
+        this.doc.zip.file(relsPath, rels);
+
+        const cx = Math.round(size[0] * 9525);
+        const cy = Math.round(size[1] * 9525);
+
+        return {
+            value: `<w:run><w:drawing><wp:inline>
+            <wp:extent cx="${cx}" cy="${cy}"/>
+            <wp:docPr id="${numId}" name="Mapa"/>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+            <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:blipFill>
+            <a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+            </pic:blipFill>
+            </pic:pic>
+            </a:graphicData>
+            </a:graphic>
+            </wp:inline></w:drawing></w:run>`
+        };
+    };
+
+    // ============================================================
+    // MAIN
+    // ============================================================
+    async function generar() {
+
+        const status = document.getElementById("status");
+        const loader = document.getElementById("loader");
+
+        const oid = new URLSearchParams(window.location.search).get("objectid");
+
+        if (!oid) {
+            status.textContent = "❌ Falta objectid";
+            return;
+        }
+
+        loader.style.display = "block";
+
+        try {
+
+            status.textContent = "🔐 Autenticando...";
+            await esriId.getCredential("https://www.arcgis.com/sharing");
+
+            status.textContent = "📡 Consultando datos...";
+
+            const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
+                query: {
+                    objectIds: oid,
+                    outFields: "*",
+                    returnGeometry: true,
+                    f: "json"
+                },
+                responseType: "json"
+            });
+
+            if (!response.data.features.length) {
+                throw new Error("No se encontró registro");
+            }
+
+            const feature = response.data.features[0];
+
+            if (!feature.geometry) {
+                throw new Error("El registro no tiene geometría");
+            }
+
+            status.textContent = "🗺️ Generando mapa...";
+
+            const mapaBuffer = await generarMapaComoImagen(feature.geometry);
+
+            // Preparar atributos
+            const attr = {};
+            Object.keys(feature.attributes).forEach(k => {
+                attr[k] = feature.attributes[k];
+                attr[k.toUpperCase()] = feature.attributes[k];
+            });
+
+            attr["MAPA_POLIGONO"] = mapaBuffer;
+
+            status.textContent = "📝 Generando Word...";
+
+            const templateResp = await fetch(PLANTILLA_URL);
+
+            const doc = new window.docxtemplater(
+                new window.PizZip(await templateResp.arrayBuffer()),
+                {
+                    delimiters: { start: "[[", end: "]]" },
+                    modules: [
+                        new MyImageModule({
+                            getSize: (img, val, tagName) =>
+                                tagName.toUpperCase() === "MAPA_POLIGONO"
+                                    ? [550, 420]
+                                    : [300, 200]
+                        })
+                    ],
+                    nullGetter: () => ""
+                }
+            );
+
+            doc.setData(attr);
+            doc.render();
+
+            window.saveAs(
+                doc.getZip().generate({ type: "blob" }),
+                `Reporte_DTC_${oid}.docx`
+            );
+
+            loader.style.display = "none";
+            status.textContent = "✅ Word generado con mapa incluido";
+
+        } catch (error) {
+            console.error(error);
+            loader.style.display = "none";
+            status.textContent = "❌ Error: " + error.message;
+        }
+    }
+
+    generar();
+
+});
 })();
