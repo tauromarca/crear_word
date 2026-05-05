@@ -1,53 +1,40 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Generador DTC</title>
-
-<meta http-equiv="Content-Security-Policy" content="
-default-src 'self';
-script-src 'self' https://js.arcgis.com 'unsafe-eval';
-worker-src blob:;
-style-src 'self' 'unsafe-inline';
-img-src 'self' data: https://*.arcgis.com;
-connect-src https://*.arcgis.com https://tauromarca.github.io;
-">
-
-<style>
-body {
-    font-family: Arial;
-    background: #f4f6f9;
-    text-align: center;
-    padding-top: 40px;
-}
-.card {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    width: 400px;
-    margin: auto;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-#status {
-    margin-top: 15px;
-    font-weight: bold;
-    color: #0056b3;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador DTC - Word Edition</title>
+    <!-- CSP Estricta -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.arcgis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.arcgis.com; connect-src 'self' https://*.arcgis.com;">
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 480px; margin: auto; }
+        h2 { color: #1a365d; margin-bottom: 5px; }
+        #status { margin-top: 25px; font-weight: 600; color: #0056b3; font-size: 1.1em; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: 15px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
-
 <body>
 
-<div class="card">
-    <h2>Generando Reporte</h2>
-    <div id="status">Inicializando...</div>
-</div>
+    <div class="card">
+        <h2>Generador de Ficha</h2>
+        <p style="color: #666; margin-top:0;">Exportación Directa a Word</p>
+        <div id="loader" class="loader"></div>
+        <div id="status">Iniciando sistema institucional...</div>
+    </div>
 
-<script src="pizzip.js"></script>
-<script src="docxtemplater.js"></script>
-<script src="FileSaver.min.js"></script>
-<script src="https://js.arcgis.com/4.29/"></script>
-<script src="app.js"></script>
+    <!-- Librerías locales -->
+    <script src="pizzip.js"></script>
+    <script src="docxtemplater.js"></script>
+    <script src="FileSaver.min.js"></script>
+
+    <!-- Cargador de ArcGIS -->
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <!-- Lógica de negocio -->
+    <script src="app.js"></script>
 
 </body>
 </html>
