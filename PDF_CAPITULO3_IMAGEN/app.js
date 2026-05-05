@@ -5,14 +5,13 @@
         "esri/Map",
         "esri/views/MapView",
         "esri/layers/FeatureLayer",
+        "esri/Graphic",
         "esri/identity/IdentityManager",
         "esri/identity/OAuthInfo"
-    ], function (Map, MapView, FeatureLayer, esriId, OAuthInfo) {
+    ], function (Map, MapView, FeatureLayer, Graphic, esriId, OAuthInfo) {
 
         const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const APP_ID = "V3aGw0JQVKFM6BdJ";
-
-        let view;
 
         const authInfo = new OAuthInfo({
             appId: APP_ID,
@@ -33,7 +32,7 @@
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
             if (!oid) {
-                status.textContent = "❌ Error: Falta parámetro objectid";
+                status.textContent = "❌ Falta objectid";
                 return;
             }
 
@@ -41,30 +40,14 @@
 
             try {
                 status.textContent = "🔐 Autenticando...";
-
                 await esriId.getCredential("https://www.arcgis.com/sharing");
 
-                status.textContent = "🗺️ Cargando capa Survey123...";
-
-                const layer = new FeatureLayer({
-                    url: FS_URL,
-                    definitionExpression: `objectid = ${oid}`,
-                    renderer: {
-                        type: "simple",
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 0, 0, 0.25],
-                            outline: { color: [255, 0, 0, 1], width: 2 }
-                        }
-                    }
-                });
-
+                // 🔹 MAPA SIN CAPA (IMPORTANTE)
                 const map = new Map({
-                    basemap: "gray-vector",
-                    layers: [layer]
+                    basemap: "gray-vector"
                 });
 
-                view = new MapView({
+                const view = new MapView({
                     container: "map-view",
                     map: map,
                     ui: { components: [] }
@@ -72,34 +55,57 @@
 
                 await view.when();
 
+                status.textContent = "📡 Consultando Survey123...";
+
+                const layer = new FeatureLayer({
+                    url: FS_URL
+                });
+
                 const query = layer.createQuery();
                 query.where = `objectid = ${oid}`;
                 query.returnGeometry = true;
+                query.outFields = ["*"];
 
                 const result = await layer.queryFeatures(query);
 
                 if (!result.features.length) {
-                    throw new Error("No se encontró el polígono");
+                    throw new Error("No se encontró polígono");
                 }
 
                 const feature = result.features[0];
 
-                status.textContent = "📍 Ajustando vista...";
+                if (!feature.geometry) {
+                    throw new Error("El registro no tiene geometría");
+                }
 
-                await view.goTo({
-                    target: feature.geometry.extent,
-                    padding: { top: 40, bottom: 40, left: 40, right: 40 }
+                status.textContent = "🧩 Dibujando polígono...";
+
+                // 🔥 DIBUJO MANUAL
+                const graphic = new Graphic({
+                    geometry: feature.geometry,
+                    symbol: {
+                        type: "simple-fill",
+                        color: [255, 0, 0, 0.25],
+                        outline: {
+                            color: [255, 0, 0, 1],
+                            width: 2
+                        }
+                    }
                 });
 
-                // 🔥 CLAVE: esperar render real
-                await view.when();
+                view.graphics.removeAll();
+                view.graphics.add(graphic);
 
-                // Esperar que el mapa deje de actualizarse
+                // 🔹 Zoom al polígono
+                await view.goTo({
+                    target: graphic.geometry.extent,
+                    padding: 40
+                });
+
+                // 🔹 Esperar render REAL
                 await view.when(() => !view.updating);
 
-               
-
-                status.textContent = "📸 Generando imagen PNG...";
+                status.textContent = "📸 Generando PNG...";
 
                 const screenshot = await view.takeScreenshot({
                     format: "png",
@@ -112,10 +118,9 @@
                 previewImg.src = screenshot.dataUrl;
                 previewImg.style.display = "block";
 
-                // Ocultar mapa
                 mapViewDiv.style.display = "none";
 
-                // Botón descarga
+                // Descargar
                 btn.style.display = "inline-block";
                 btn.onclick = () => {
                     const a = document.createElement("a");
@@ -125,12 +130,12 @@
                 };
 
                 loader.style.display = "none";
-                status.textContent = "✅ Imagen lista para descargar";
+                status.textContent = "✅ Imagen lista";
 
             } catch (error) {
                 console.error(error);
                 loader.style.display = "none";
-                status.textContent = "❌ Error: " + error.message;
+                status.textContent = "❌ " + error.message;
             }
         }
 
