@@ -16,7 +16,7 @@ const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
 esriId.registerOAuthInfos([authInfo]);
 
 // ============================================================
-// 🔥 GENERAR MAPA PNG (ESTABLE)
+// 🔥 GENERAR MAPA PNG (VERSIÓN ESTABLE)
 // ============================================================
 async function obtenerMapaPNG(geometry) {
 
@@ -25,14 +25,15 @@ async function obtenerMapaPNG(geometry) {
         const poly = new Polygon(geometry);
         const ext = poly.extent.expand(2);
 
-        const url = "https://utility.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/export";
+        const url = "https://export.arcgis.com/arcgis/rest/services/World_Street_Map/MapServer/export";
 
         const params = new URLSearchParams({
             bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-            bboxSR: ext.spatialReference.wkid,
-            imageSR: ext.spatialReference.wkid,
-            size: "1000,750",
+            bboxSR: ext.spatialReference.wkid || 102100,
+            imageSR: ext.spatialReference.wkid || 102100,
+            size: "1200,900",
             format: "png32",
+            transparent: "false",
             f: "image"
         });
 
@@ -43,13 +44,12 @@ async function obtenerMapaPNG(geometry) {
         const response = await fetch(fullUrl);
 
         if (!response.ok) {
-            throw new Error("Error HTTP al generar mapa");
+            throw new Error(`HTTP ${response.status}`);
         }
 
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
+        const buffer = await response.arrayBuffer();
 
-        return new Uint8Array(arrayBuffer);
+        return new Uint8Array(buffer);
 
     } catch (e) {
         console.error("❌ Error generando mapa:", e);
@@ -172,6 +172,7 @@ async function generar() {
             attr[k.toUpperCase()] = feature.attributes[k];
         });
 
+        // 🔥 AQUÍ SE INSERTA LA IMAGEN
         attr["MAPA_POLIGONO"] = mapaBuffer;
 
         status.textContent = "📝 Generando Word...";
