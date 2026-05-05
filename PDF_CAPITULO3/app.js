@@ -18,7 +18,7 @@ const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
 esriId.registerOAuthInfos([authInfo]);
 
 // ============================================================
-// GENERAR MAPA COMO IMAGEN
+// GENERAR IMAGEN DEL MAPA
 // ============================================================
 async function generarMapaComoImagen(featureGeometry) {
 
@@ -39,9 +39,7 @@ async function generarMapaComoImagen(featureGeometry) {
             container.style.top = "-9999px";
             document.body.appendChild(container);
 
-            const map = new Map({
-                basemap: "streets-vector"
-            });
+            const map = new Map({ basemap: "streets-vector" });
 
             const view = new MapView({
                 container: container,
@@ -62,10 +60,7 @@ async function generarMapaComoImagen(featureGeometry) {
 
                 view.graphics.add(graphic);
 
-                await view.goTo({
-                    target: geometry,
-                    padding: 50
-                });
+                await view.goTo({ target: geometry, padding: 50 });
 
                 setTimeout(async () => {
 
@@ -102,7 +97,7 @@ async function generarMapaComoImagen(featureGeometry) {
 }
 
 // ============================================================
-// MODULO IMAGEN WORD (CORREGIDO)
+// MODULO IMAGEN WORD (FINAL FUNCIONAL)
 // ============================================================
 function MyImageModule(options) {
     this.options = options || {};
@@ -131,8 +126,8 @@ MyImageModule.prototype.render = function (part, options) {
         return { value: "" };
     }
 
-    const imgName = "image_" + Math.floor(Math.random() * 1e6) + ".png";
-    const rId = "rId" + Math.floor(Math.random() * 1e6);
+    const imgName = "image_" + Date.now() + ".png";
+    const rId = "rId" + Date.now();
 
     this.doc.zip.file("word/media/" + imgName, tagValue);
 
@@ -151,40 +146,47 @@ MyImageModule.prototype.render = function (part, options) {
 
     return {
         value: `
-<w:r>
-<w:drawing>
-<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
-xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
-xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<w:p>
+  <w:r>
+    <w:drawing>
+      <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                 xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                 xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+        <wp:extent cx="${cx}" cy="${cy}"/>
+        <wp:docPr id="1" name="Mapa"/>
 
-<wp:extent cx="${cx}" cy="${cy}"/>
-<wp:docPr id="1" name="Picture"/>
+        <a:graphic>
+          <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
 
-<a:graphic>
-<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:pic>
+              <pic:nvPicPr>
+                <pic:cNvPr id="0" name="Imagen"/>
+                <pic:cNvPicPr/>
+              </pic:nvPicPr>
 
-<pic:pic>
-<pic:blipFill>
-<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-<a:stretch><a:fillRect/></a:stretch>
-</pic:blipFill>
+              <pic:blipFill>
+                <a:blip r:embed="${rId}"
+                        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+                <a:stretch><a:fillRect/></a:stretch>
+              </pic:blipFill>
 
-<pic:spPr>
-<a:xfrm>
-<a:off x="0" y="0"/>
-<a:ext cx="${cx}" cy="${cy}"/>
-</a:xfrm>
-<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-</pic:spPr>
+              <pic:spPr>
+                <a:xfrm>
+                  <a:off x="0" y="0"/>
+                  <a:ext cx="${cx}" cy="${cy}"/>
+                </a:xfrm>
+                <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+              </pic:spPr>
 
-</pic:pic>
+            </pic:pic>
 
-</a:graphicData>
-</a:graphic>
+          </a:graphicData>
+        </a:graphic>
 
-</wp:inline>
-</w:drawing>
-</w:r>
+      </wp:inline>
+    </w:drawing>
+  </w:r>
+</w:p>
 `
     };
 };
@@ -207,7 +209,7 @@ async function generar() {
         status.textContent = "🔐 Conectando...";
         await esriId.getCredential("https://www.arcgis.com/sharing");
 
-        status.textContent = "📡 Consultando...";
+        status.textContent = "📡 Consultando datos...";
 
         const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
             query: {
@@ -224,6 +226,10 @@ async function generar() {
         status.textContent = "🗺️ Generando mapa...";
 
         const mapaBuffer = await generarMapaComoImagen(feature.geometry);
+
+        if (!mapaBuffer || mapaBuffer.length === 0) {
+            throw new Error("Imagen no generada");
+        }
 
         const attr = {};
         Object.keys(feature.attributes).forEach(k => {
@@ -253,7 +259,7 @@ async function generar() {
             `Reporte_DTC_${oid}.docx`
         );
 
-        status.textContent = "✅ Documento generado";
+        status.textContent = "✅ Documento generado correctamente";
 
     } catch (error) {
         console.error(error);
