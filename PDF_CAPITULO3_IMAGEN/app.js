@@ -2,120 +2,113 @@
     "use strict";
 
     require([
-        "esri/request",
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/Graphic",
         "esri/identity/IdentityManager",
-        "esri/identity/OAuthInfo",
-        "esri/geometry/Polygon"
-    ], function(esriRequest, esriId, OAuthInfo, Polygon) {
+        "esri/identity/OAuthInfo"
+    ], function(Map, MapView, FeatureLayer, Graphic, esriId, OAuthInfo) {
 
-        // URL del FeatureServer
         const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
         const APP_ID = "V3aGw0JQVKFM6BdJ"; 
-        let globalBlob = null;
+        let view;
 
         const authInfo = new OAuthInfo({ appId: APP_ID, popup: false });
         esriId.registerOAuthInfos([authInfo]);
 
-        // FUNCIÓN CLAVE: Exportación con sintaxis estricta para ArcGIS Online
-        async function exportarMapa(oid, geometry) {
-            try {
-                const poly = new Polygon(geometry);
-                const ext = poly.extent.expand(2.5); // Margen de visibilidad
-                
-                // Convertir la URL de FeatureServer a MapServer raíz
-                const mapServerUrl = FS_URL.replace("/FeatureServer/0", "/MapServer");
-                
-                // Obtener token activo
-                const credential = await esriId.getCredential("https://www.arcgis.com/sharing");
-
-                // Construcción manual de parámetros para evitar el error 400 "f"
-                const queryParams = {
-                    f: "image",
-                    format: "png32",
-                    size: "1200,900",
-                    bbox: `${ext.xmin},${ext.ymin},${ext.xmax},${ext.ymax}`,
-                    bboxSR: ext.spatialReference.wkid || 102100,
-                    layers: "show:0",
-                    // layerDefs debe ser un string JSON {"ID_CAPA":"FILTRO"}
-                    layerDefs: JSON.stringify({ "0": "objectid = " + oid }),
-                    transparent: "true",
-                    token: credential.token
-                };
-
-                const response = await esriRequest(`${mapServerUrl}/export`, {
-                    query: queryParams,
-                    responseType: "blob"
-                });
-
-                return response.data;
-            } catch (e) {
-                console.error("❌ Fallo técnico al exportar:", e);
-                return null;
-            }
-        }
-
         async function ejecutar() {
             const status = document.getElementById("status");
             const loader = document.getElementById("loader");
-            const img = document.getElementById("result-img");
-            const placeholder = document.getElementById("placeholder-text");
             const btn = document.getElementById("btn-download");
+            const previewImg = document.getElementById("final-preview");
+            const mapViewDiv = document.getElementById("map-view");
 
             const urlParams = new URLSearchParams(window.location.search);
             const oid = urlParams.get("objectid") || urlParams.get("oid");
 
             if (!oid) {
-                status.textContent = "Error: Falta ID de registro (?objectid=X)";
+                status.textContent = "Error: Falta ID de registro.";
                 return;
             }
 
             loader.style.display = "block";
 
             try {
-                status.textContent = "🔐 Autenticando con ArcGIS Online...";
+                status.textContent = "🔐 Autenticando acceso...";
+                await esriId.getCredential("https://www.arcgis.com/sharing");
 
-                // 1. Obtener la geometría del polígono
-                const response = await esriRequest(`${FS_URL}/query`, {
-                    query: {
-                        objectIds: oid,
-                        outFields: "objectid",
-                        returnGeometry: true,
-                        f: "json"
-                    },
-                    responseType: "json"
+                // 1. Configurar el Mapa y la Capa
+                const layer = new FeatureLayer({
+                    url: FS_URL,
+                    definitionExpression: `objectid = ${oid}`,
+                    renderer: {
+                        type: "simple",
+                        symbol: {
+                            type: "simple-fill",
+                            color: [0, 197, 255, 0.3], // Celeste transparente
+                            outline: { color: [0, 197, 255, 1], width: 2 } // Borde azul
+                        }
+                    }
                 });
 
-                if (!response.data.features?.length) throw new Error("No se encontró el registro.");
-                const feature = response.data.features[0];
+                const map = new Map({
+                    basemap: "topo-vector", // Puedes cambiar a "satellite" si prefieres
+                    layers: [layer]
+                });
 
-                if (!feature.geometry) throw new Error("El registro no tiene un polígono dibujado.");
+                view = new MapView({
+                    container: "map-view",
+                    map: map,
+                    ui: { components: [] } // Quitar botones de zoom para imagen limpia
+                });
 
-                // 2. Exportar la imagen
-                status.textContent = "🗺️ Renderizando polígono...";
-                const blob = await exportarMapa(oid, feature.geometry);
+                status.textContent = "🗺️ Localizando polígono...";
 
-                if (blob) {
-                    globalBlob = blob;
-                    
-                    // Mostrar imagen en pantalla
-                    const imageUrl = URL.createObjectURL(blob);
-                    img.src = imageUrl;
-                    img.style.display = "block";
-                    placeholder.style.display = "none";
+                // 2. Esperar a que la capa cargue y centrar la vista
+                await view.when();
+                const query = layer.createQuery();
+                query.where = `objectid = ${oid}`;
+                query.returnGeometry = true;
+                
+                const result = await layer.queryFeatures(query);
+                
+                if (result.features.length === 0) throw new Error("No se encontró el polígono.");
+                
+                const feature = result.features[0];
+                
+                // Centrar el mapa en el polígono con un margen
+                await view.goTo(feature.geometry.extent.expand(2.5));
+                
+                status.textContent = "📸 Generando PNG de alta resolución...";
 
-                    // Activar botón de descarga
+                // 3. Tomar la "foto" del mapa (Screenshot)
+                // Esperamos un momento para que los tiles del mapa base carguen
+                setTimeout(async () => {
+                    const screenshot = await view.takeScreenshot({
+                        format: "png",
+                        quality: 100,
+                        width: 1200,
+                        height: 900
+                    });
+
+                    // 4. Mostrar en pantalla y preparar descarga
+                    previewImg.src = screenshot.dataUrl;
+                    previewImg.style.display = "block";
+                    mapViewDiv.style.display = "none"; // Ocultamos el mapa interactivo
+
                     btn.style.display = "inline-block";
-                    btn.onclick = () => window.saveAs(globalBlob, `Poligono_ID_${oid}.png`);
+                    btn.onclick = () => {
+                        window.saveAs(screenshot.dataUrl, `Poligono_ID_${oid}.png`);
+                    };
 
-                    status.textContent = "✅ ¡Mapa generado con éxito!";
-                } else {
-                    status.textContent = "❌ Falló la creación del mapa.";
-                }
+                    status.textContent = "✅ ¡Imagen lista para descargar!";
+                    loader.style.display = "none";
+                }, 2000); // 2 segundos de espera para carga de mapa base
 
             } catch (error) {
                 console.error(error);
                 status.textContent = "❌ Error: " + error.message;
-            } finally {
                 loader.style.display = "none";
             }
         }

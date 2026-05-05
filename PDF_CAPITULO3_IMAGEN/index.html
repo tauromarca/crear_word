@@ -2,19 +2,28 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Descarga de Polígono GIS</title>
+    <title>Generador de Imagen de Polígono</title>
+    <!-- Cargamos la CSS de ArcGIS -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; text-align: center; padding: 30px; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 700px; margin: auto; }
-        #status { margin-bottom: 20px; font-weight: bold; color: #0056b3; }
-        #image-preview { 
-            width: 100%; min-height: 300px; border: 2px solid #ddd; 
-            border-radius: 8px; margin-bottom: 20px; background: #fafafa;
-            display: flex; align-items: center; justify-content: center;
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+        #status { margin-bottom: 15px; font-weight: bold; color: #0056b3; }
+        
+        /* Contenedor del mapa (invisible mientras procesa) */
+        #map-view { 
+            width: 100%; height: 500px; border: 1px solid #ddd; 
+            border-radius: 8px; background: #fff; margin-bottom: 20px;
         }
-        img { max-width: 100%; border-radius: 4px; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+
+        /* Vista previa de la imagen final */
+        #final-preview { 
+            display: none; width: 100%; border: 2px solid #27ae60; 
+            border-radius: 8px; margin-bottom: 20px; 
+        }
+
         .btn { 
-            background: #27ae60; color: white; padding: 12px 25px; 
+            background: #27ae60; color: white; padding: 12px 30px; 
             border: none; border-radius: 6px; cursor: pointer; 
             font-size: 16px; font-weight: bold; display: none;
         }
@@ -25,20 +34,21 @@
 </head>
 <body>
     <div class="card">
-        <h2>Visualizador de Polígono</h2>
-        <div id="status">Esperando conexión...</div>
+        <h2>Mapa del Polígono Institucional</h2>
+        <div id="status">Iniciando motor GIS...</div>
         <div id="loader" class="loader"></div>
 
-        <div id="image-preview">
-            <img id="result-img" alt="Vista previa del mapa">
-            <span id="placeholder-text" style="color: #999;">La imagen aparecerá aquí</span>
-        </div>
+        <!-- El div donde ArcGIS dibujará el polígono -->
+        <div id="map-view"></div>
 
-        <button id="btn-download" class="btn">Descargar Imagen PNG</button>
+        <!-- Aquí se mostrará el PNG final generado -->
+        <img id="final-preview" alt="Imagen PNG generada">
+
+        <button id="btn-download" class="btn">Descargar Archivo PNG</button>
     </div>
 
-    <!-- API de ArcGIS y FileSaver -->
-    <script src="FileSaver.min.js"></script>
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://js.arcgis.com/4.29/"></script>
     <script src="app.js"></script>
 </body>
