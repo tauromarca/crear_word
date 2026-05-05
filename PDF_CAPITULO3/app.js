@@ -72,7 +72,7 @@ async function generarMapaComoImagen(featureGeometry) {
                 view.graphics.add(graphic);
 
                 // ✔ centrado robusto
-                await view.goTo({
+                view.goTo({
                     target: geometry,
                     padding: 50
                 });
