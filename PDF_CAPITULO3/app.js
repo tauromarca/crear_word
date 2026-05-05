@@ -11,14 +11,14 @@ require([
 ], function(esriRequest, esriId, OAuthInfo, Map, MapView, Graphic) {
 
 const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
-const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
+const PLANTILLA_URL = "https://tauromarca.github.io/crear_word/PDF_CAPITULO3/PLANTILLA%20VISUALIZACI%C3%93N%20DTC.docx";
 const APP_ID_ARCGIS = "V3aGw0JQVKFM6BdJ";
 
 const authInfo = new OAuthInfo({ appId: APP_ID_ARCGIS, popup: false });
 esriId.registerOAuthInfos([authInfo]);
 
 // ============================================================
-// 🔥 GENERAR MAPA COMO IMAGEN (ROBUSTO)
+// GENERAR MAPA COMO IMAGEN
 // ============================================================
 async function generarMapaComoImagen(featureGeometry) {
 
@@ -26,18 +26,12 @@ async function generarMapaComoImagen(featureGeometry) {
 
         try {
 
-            if (!featureGeometry || !featureGeometry.rings) {
-                return reject("Geometría inválida");
-            }
-
-            // ✔ geometría autocasteable segura
             const geometry = {
                 type: "polygon",
                 rings: featureGeometry.rings,
                 spatialReference: featureGeometry.spatialReference || { wkid: 4326 }
             };
 
-            // contenedor oculto
             const container = document.createElement("div");
             container.style.width = "1200px";
             container.style.height = "900px";
@@ -62,22 +56,17 @@ async function generarMapaComoImagen(featureGeometry) {
                     symbol: {
                         type: "simple-fill",
                         color: [0, 197, 255, 0.3],
-                        outline: {
-                            color: [0, 197, 255, 1],
-                            width: 2
-                        }
+                        outline: { color: [0, 197, 255, 1], width: 2 }
                     }
                 });
 
                 view.graphics.add(graphic);
 
-                // ✔ centrado robusto
-                view.goTo({
+                await view.goTo({
                     target: geometry,
                     padding: 50
                 });
 
-                // ✔ esperar render (estable)
                 setTimeout(async () => {
 
                     const screenshot = await view.takeScreenshot({
@@ -93,6 +82,8 @@ async function generarMapaComoImagen(featureGeometry) {
                     for (let i = 0; i < binary.length; i++) {
                         bytes[i] = binary.charCodeAt(i);
                     }
+
+                    console.log("📸 Tamaño imagen:", bytes.length);
 
                     view.destroy();
                     container.remove();
@@ -111,72 +102,92 @@ async function generarMapaComoImagen(featureGeometry) {
 }
 
 // ============================================================
-// MODULO IMAGEN WORD
+// MODULO IMAGEN WORD (CORREGIDO)
 // ============================================================
-function MyImageModule(options) { this.options = options || {}; }
+function MyImageModule(options) {
+    this.options = options || {};
+}
 
-MyImageModule.prototype.optionsTransformer = function(options, doc) {
+MyImageModule.prototype.optionsTransformer = function (options, doc) {
     this.doc = doc;
     return options;
 };
 
-MyImageModule.prototype.parse = function(type, data) {
+MyImageModule.prototype.parse = function (type, data) {
     if (type === "tag" && data.tag.charAt(0) === "%") {
         return { type: "placeholder", value: data.tag.substr(1) };
     }
     return null;
 };
 
-MyImageModule.prototype.render = function(part, options) {
+MyImageModule.prototype.render = function (part, options) {
 
     if (part.type !== "placeholder") return null;
 
     const tagValue = options.scopeManager.getValue(part.value);
 
-    //if (!tagValue || typeof tagValue === 'string') {
-    //    return { value: "" };
-    //}
-    if (!tagValue || !(tagValue instanceof Uint8Array)) {
-    console.warn("⚠️ Imagen inválida:", tagValue);
-    return { value: "" };
-}
-    const numId = Math.floor(Math.random() * 1e6);
-    const rId = "rIdImg" + numId;
-    const imgName = "mapa_" + numId + ".png";
+    if (!(tagValue instanceof Uint8Array)) {
+        console.warn("Imagen inválida:", tagValue);
+        return { value: "" };
+    }
 
-    const size = this.options.getSize(null, tagValue, part.value);
+    const imgName = "image_" + Math.floor(Math.random() * 1e6) + ".png";
+    const rId = "rId" + Math.floor(Math.random() * 1e6);
 
-    //this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
     this.doc.zip.file("word/media/" + imgName, tagValue);
 
     const relsPath = "word/_rels/document.xml.rels";
     let rels = this.doc.zip.file(relsPath).asText();
 
-    rels = rels.replace("</Relationships>",
+    rels = rels.replace(
+        "</Relationships>",
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/></Relationships>`
     );
 
     this.doc.zip.file(relsPath, rels);
 
-    const cx = Math.round(size[0] * 9525);
-    const cy = Math.round(size[1] * 9525);
+    const cx = 550 * 9525;
+    const cy = 420 * 9525;
 
     return {
-        value: `<w:run><w:drawing><wp:inline>
-        <wp:extent cx="${cx}" cy="${cy}"/>
-        <wp:docPr id="${numId}" name="Mapa"/>
-        <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-        <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-        <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-        <pic:blipFill>
-        <a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-        </pic:blipFill>
-        </pic:pic>
-        </a:graphicData>
-        </a:graphic>
-        </wp:inline></w:drawing></w:run>`
+        value: `
+<w:r>
+<w:drawing>
+<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+
+<wp:extent cx="${cx}" cy="${cy}"/>
+<wp:docPr id="1" name="Picture"/>
+
+<a:graphic>
+<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+
+<pic:pic>
+<pic:blipFill>
+<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+<a:stretch><a:fillRect/></a:stretch>
+</pic:blipFill>
+
+<pic:spPr>
+<a:xfrm>
+<a:off x="0" y="0"/>
+<a:ext cx="${cx}" cy="${cy}"/>
+</a:xfrm>
+<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+</pic:spPr>
+
+</pic:pic>
+
+</a:graphicData>
+</a:graphic>
+
+</wp:inline>
+</w:drawing>
+</w:r>
+`
     };
-}
+};
 
 // ============================================================
 // MAIN
@@ -196,7 +207,7 @@ async function generar() {
         status.textContent = "🔐 Conectando...";
         await esriId.getCredential("https://www.arcgis.com/sharing");
 
-        status.textContent = "📡 Consultando datos...";
+        status.textContent = "📡 Consultando...";
 
         const response = await esriRequest(`${FEATURE_LAYER_URL}/query`, {
             query: {
@@ -210,26 +221,16 @@ async function generar() {
 
         const feature = response.data.features[0];
 
-        if (!feature.geometry) {
-            throw "No existe geometría";
-        }
-
         status.textContent = "🗺️ Generando mapa...";
 
-
-
         const mapaBuffer = await generarMapaComoImagen(feature.geometry);
-        if (!mapaBuffer || mapaBuffer.length === 0) {
-           throw new Error("Imagen de mapa vacía o no generada");
-        }
-        console.log("📸 Tamaño imagen:", mapaBuffer.length);
+
         const attr = {};
         Object.keys(feature.attributes).forEach(k => {
             attr[k] = feature.attributes[k];
             attr[k.toUpperCase()] = feature.attributes[k];
         });
 
-        //attr["MAPA_POLIGONO"] = mapaBuffer;
         attr["MAPA_POLIGONO"] = new Uint8Array(mapaBuffer);
 
         status.textContent = "📝 Generando Word...";
@@ -240,9 +241,7 @@ async function generar() {
             new window.PizZip(await templateResp.arrayBuffer()),
             {
                 delimiters: { start: "[[", end: "]]" },
-                modules: [new MyImageModule({
-                    getSize: () => [550, 420]
-                })]
+                modules: [new MyImageModule()]
             }
         );
 
@@ -254,7 +253,7 @@ async function generar() {
             `Reporte_DTC_${oid}.docx`
         );
 
-        status.textContent = "✅ Completado";
+        status.textContent = "✅ Documento generado";
 
     } catch (error) {
         console.error(error);
