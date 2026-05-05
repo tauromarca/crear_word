@@ -103,7 +103,18 @@
                 });
 
                 // 🔹 Esperar render REAL
-                await view.when(() => !view.updating);
+                await view.when();
+
+                await new Promise(resolve => {
+                    const handle = view.watch("updating", (val) => {
+                        if (val === false) {
+                            handle.remove();
+                            resolve();
+                        }
+                    });
+                });
+
+                //await view.when(() => !view.updating);
 
                 status.textContent = "📸 Generando PNG...";
 
