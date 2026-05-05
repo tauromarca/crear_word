@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador DTC - Word Edition</title>
+    <title>Generador DTC - Word</title>
 
-    <!-- ✅ CSP CORREGIDA (clave para ArcGIS + screenshot) -->
+    <!-- CSP SIMPLE (ya no necesitamos workers) -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' 'unsafe-eval' blob: https://js.arcgis.com;
+        script-src 'self' https://js.arcgis.com;
         style-src 'self' 'unsafe-inline';
-        img-src 'self' data: blob: https://*.arcgis.com https://*.arcgisonline.com;
+        img-src 'self' data: https://*.arcgis.com https://*.arcgisonline.com;
         connect-src 'self' https://*.arcgis.com https://*.arcgisonline.com;
-        worker-src blob:;
     ">
 
     <style>
@@ -22,29 +21,19 @@
             text-align: center;
             padding-top: 50px;
         }
-
         .card {
             background: white;
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-            width: 100%;
             max-width: 480px;
             margin: auto;
         }
-
-        h2 {
-            color: #1a365d;
-            margin-bottom: 5px;
-        }
-
         #status {
-            margin-top: 25px;
-            font-weight: 600;
+            margin-top: 20px;
+            font-weight: bold;
             color: #0056b3;
-            font-size: 1.1em;
         }
-
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -52,22 +41,11 @@
             width: 30px;
             height: 30px;
             animation: spin 1s linear infinite;
-            display: none;
             margin: 15px auto;
         }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        /* 👇 Contenedor oculto para generar el mapa */
-        #map-hidden {
-            width: 800px;
-            height: 600px;
-            position: absolute;
-            top: -9999px;
-            left: -9999px;
         }
     </style>
 </head>
@@ -76,24 +54,14 @@
 
 <div class="card">
     <h2>Generador de Ficha</h2>
-    <p style="color:#666;">Exportación Directa a Word</p>
-
-    <div id="loader" class="loader"></div>
-    <div id="status">Iniciando sistema institucional...</div>
+    <div class="loader"></div>
+    <div id="status">Procesando información...</div>
 </div>
 
-<!-- 👇 contenedor oculto para ArcGIS -->
-<div id="map-hidden"></div>
-
-<!-- Librerías locales -->
 <script src="pizzip.js"></script>
 <script src="docxtemplater.js"></script>
 <script src="FileSaver.min.js"></script>
-
-<!-- ArcGIS -->
 <script src="https://js.arcgis.com/4.29/"></script>
-
-<!-- Lógica -->
 <script src="app.js"></script>
 
 </body>
