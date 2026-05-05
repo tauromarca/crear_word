@@ -55,7 +55,7 @@ async function generarMapaComoImagen(featureGeometry) {
                 ui: { components: [] }
             });
 
-            view.when(async () => {
+            await view.when(async () => {
 
                 const graphic = new Graphic({
                     geometry: geometry,
@@ -69,7 +69,7 @@ async function generarMapaComoImagen(featureGeometry) {
                     }
                 });
 
-                view.graphics.add(graphic);
+                await view.graphics.add(graphic);
 
                 // ✔ centrado robusto
                 await view.goTo({
