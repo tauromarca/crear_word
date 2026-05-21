@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        Generar Word
+    </title>
+
+    <style>
+
+        body {
+
+            font-family: Arial;
+
+            text-align: center;
+
+            margin-top: 50px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<h2>
+    Generando Word...
+</h2>
+
+<!-- ===================================================== -->
+<!-- DOCX -->
+<!-- ===================================================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
+<!-- ===================================================== -->
+<!-- FILE SAVER -->
+<!-- ===================================================== -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<script>
+
+(async function () {
+
+    try {
+
+        // =============================================
+        // LEER IMAGEN
+        // =============================================
+
+        const dataUrl =
+            localStorage.getItem(
+                "imagenArcGIS"
+            );
+
+        if (!dataUrl) {
+
+            alert(
+                "No existe imagen"
+            );
+
+            return;
+        }
+
+        // =============================================
+        // BASE64 → ARRAY BUFFER
+        // =============================================
+
+        const response =
+            await fetch(dataUrl);
+
+        const imageBuffer =
+            await response.arrayBuffer();
+
+        // =============================================
+        // CREAR WORD
+        // =============================================
+
+        const doc =
+            new docx.Document({
+
+                sections: [
+
+                    {
+
+                        properties: {},
+
+                        children: [
+
+                            new docx.Paragraph({
+
+                                children: [
+
+                                    new docx.TextRun({
+
+                                        text:
+                                            "Mapa del Polígono ArcGIS",
+
+                                        bold: true,
+
+                                        size: 32
+                                    })
+                                ]
+                            }),
+
+                            new docx.Paragraph({
+
+                                children: [
+
+                                    new docx.ImageRun({
+
+                                        data:
+                                            imageBuffer,
+
+                                        transformation: {
+
+                                            width: 600,
+
+                                            height: 350
+                                        }
+                                    })
+                                ]
+                            })
+                        ]
+                    }
+                ]
+            });
+
+        // =============================================
+        // GENERAR DOCX
+        // =============================================
+
+        const blob =
+            await docx.Packer.toBlob(doc);
+
+        // =============================================
+        // DESCARGAR
+        // =============================================
+
+        saveAs(
+
+            blob,
+
+            "MapaArcGIS.docx"
+        );
+
+        document.body.innerHTML =
+            "<h2>✅ Word generado correctamente</h2>";
+    }
+    catch(error) {
+
+        console.error(error);
+
+        document.body.innerHTML =
+            "<h2>❌ " +
+            error.message +
+            "</h2>";
+    }
+
+})();
+
+</script>
+
+</body>
+
+</html>
