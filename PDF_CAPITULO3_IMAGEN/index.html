@@ -6,33 +6,23 @@
     <meta charset="UTF-8">
 
     <title>
-        ArcGIS → Word
+        ArcGIS → Template Word
     </title>
-
-    <!-- ===================================================== -->
-    <!-- ARCGIS CSS -->
-    <!-- ===================================================== -->
 
     <link
         rel="stylesheet"
         href="https://js.arcgis.com/4.29/esri/themes/light/main.css"
     >
 
-    <!-- ===================================================== -->
-    <!-- ESTILOS -->
-    <!-- ===================================================== -->
-
     <style>
 
         body {
 
-            font-family: "Segoe UI", sans-serif;
+            font-family: Arial;
 
-            background: #f0f2f5;
+            background: #f2f2f2;
 
-            margin: 0;
-
-            padding: 20px;
+            margin: 20px;
 
             text-align: center;
         }
@@ -41,57 +31,40 @@
 
             background: white;
 
-            padding: 25px;
+            padding: 20px;
 
-            border-radius: 12px;
-
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
 
             max-width: 1000px;
 
             margin: auto;
         }
 
-        #status {
-
-            margin-bottom: 15px;
-
-            font-weight: bold;
-
-            color: #0056b3;
-        }
-
         #map-view {
 
             width: 100%;
 
-            height: 550px;
-
-            border-radius: 8px;
+            height: 500px;
 
             margin-bottom: 20px;
         }
 
         #final-preview {
 
-            display: none;
-
             width: 100%;
 
-            border: 2px solid #27ae60;
-
-            border-radius: 8px;
+            display: none;
 
             margin-bottom: 20px;
         }
 
         .btn {
 
+            padding: 12px 25px;
+
             background: #27ae60;
 
             color: white;
-
-            padding: 12px 30px;
 
             border: none;
 
@@ -101,46 +74,7 @@
 
             font-size: 16px;
 
-            font-weight: bold;
-
             display: none;
-        }
-
-        .btn:hover {
-
-            background: #219150;
-        }
-
-        .loader {
-
-            border: 4px solid #f3f3f3;
-
-            border-top: 4px solid #3498db;
-
-            border-radius: 50%;
-
-            width: 30px;
-
-            height: 30px;
-
-            animation: spin 1s linear infinite;
-
-            display: none;
-
-            margin: 10px auto;
-        }
-
-        @keyframes spin {
-
-            0% {
-
-                transform: rotate(0deg);
-            }
-
-            100% {
-
-                transform: rotate(360deg);
-            }
         }
 
     </style>
@@ -152,25 +86,16 @@
 <div class="card">
 
     <h2>
-        ArcGIS → Word
+        ArcGIS → Template Word
     </h2>
 
     <div id="status">
-
-        Iniciando motor GIS...
+        Iniciando...
     </div>
-
-    <div
-        id="loader"
-        class="loader"
-    ></div>
 
     <div id="map-view"></div>
 
-    <img
-        id="final-preview"
-        alt="Imagen PNG"
-    >
+    <img id="final-preview">
 
     <button
         id="btn-word"
@@ -181,15 +106,7 @@
 
 </div>
 
-<!-- ===================================================== -->
-<!-- ARCGIS -->
-<!-- ===================================================== -->
-
 <script src="https://js.arcgis.com/4.29/"></script>
-
-<!-- ===================================================== -->
-<!-- APP -->
-<!-- ===================================================== -->
 
 <script src="app.js"></script>
 
