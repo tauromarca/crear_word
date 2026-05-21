@@ -2,166 +2,288 @@
 <html lang="es">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Generar Word con Imagen</title>
+    <meta charset="UTF-8">
+    <title>Generar Word con Imagen</title>
 </head>
 
 <body>
 
-<input type="file" id="imageInput" accept="image/*">
+    <h2>Insertar Imagen en Word</h2>
 
-<button id="generateBtn">
-  Generar Word
-</button>
+    <input
+        type="file"
+        id="imageInput"
+        accept="image/*"
+    >
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js"></script>
+    <button id="generateBtn">
+        Generar Word
+    </button>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.9/docxtemplater.js"></script>
+    <!-- ===================================================== -->
+    <!-- LIBRERIAS -->
+    <!-- ===================================================== -->
 
-<script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/docxtemplater@3.37.9/build/docxtemplater.js"></script>
 
-<script>
+    <script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
 
-console.log("HTML cargado OK");
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-let selectedImage = null;
+    <!-- ===================================================== -->
+    <!-- CODIGO -->
+    <!-- ===================================================== -->
 
-// ======================================
-// CARGAR IMAGEN
-// ======================================
+    <script>
 
-document
-.getElementById("imageInput")
-.addEventListener("change", function(event) {
-
-    const file = event.target.files[0];
-
-    if (!file) {
-        return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-
-        selectedImage = e.target.result;
+        console.log("HTML cargado OK");
 
         console.log(
-            "Imagen cargada"
+            "PizZip:",
+            typeof PizZip
         );
-    };
 
-    reader.readAsDataURL(file);
-});
+        console.log(
+            "docxtemplater:",
+            typeof docxtemplater
+        );
 
-// ======================================
-// GENERAR WORD
-// ======================================
+        console.log(
+            "ImageModule:",
+            typeof ImageModule
+        );
 
-document
-.getElementById("generateBtn")
-.addEventListener("click", async function() {
+        // =====================================================
+        // VARIABLE GLOBAL IMAGEN
+        // =====================================================
 
-    try {
+        let selectedImage = null;
 
-        if (!selectedImage) {
+        // =====================================================
+        // SELECCIONAR IMAGEN
+        // =====================================================
 
-            alert(
-                "Seleccione imagen"
-            );
+        document
+            .getElementById("imageInput")
+            .addEventListener(
+                "change",
+                function(event) {
 
-            return;
-        }
+                    const file =
+                        event.target.files[0];
 
-        // cargar template
-        const response =
-            await fetch("template.docx");
+                    if (!file) {
+                        return;
+                    }
 
-        if (!response.ok) {
-
-            throw new Error(
-                "No existe template.docx"
-            );
-        }
-
-        const arrayBuffer =
-            await response.arrayBuffer();
-
-        const zip =
-            new PizZip(arrayBuffer);
-
-        // modulo imagen
-        const imageModule =
-            new ImageModule({
-
-                centered: false,
-
-                getImage: function(tagValue) {
-
-                    const base64Data =
-                        tagValue.split(",")[1];
-
-                    return Uint8Array.from(
-                        atob(base64Data),
-                        c => c.charCodeAt(0)
+                    console.log(
+                        "Archivo seleccionado:",
+                        file.name
                     );
-                },
 
-                getSize: function() {
+                    const reader =
+                        new FileReader();
 
-                    return [300, 200];
-                }
-            });
+                    reader.onload =
+                        function(e) {
 
-        // documento
-        const doc =
-            new window.docxtemplater(
-                zip,
-                {
-                    modules: [imageModule]
+                            selectedImage =
+                                e.target.result;
+
+                            console.log(
+                                "Imagen cargada OK"
+                            );
+                        };
+
+                    reader.readAsDataURL(file);
                 }
             );
 
-        // reemplazo
-        doc.render({
-            imagen: selectedImage
-        });
+        // =====================================================
+        // GENERAR WORD
+        // =====================================================
 
-        // generar word
-        const blob =
-            doc.getZip().generate({
+        document
+            .getElementById("generateBtn")
+            .addEventListener(
+                "click",
+                async function() {
 
-                type: "blob",
+                    try {
 
-                mimeType:
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            });
+                        console.log(
+                            "Generando Word..."
+                        );
 
-        saveAs(
-            blob,
-            "documento.docx"
-        );
+                        // =====================================
+                        // VALIDAR IMAGEN
+                        // =====================================
 
-        console.log(
-            "WORD generado OK"
-        );
-    }
-    catch(error) {
+                        if (!selectedImage) {
 
-        console.error(
-            "ERROR:",
-            error
-        );
+                            alert(
+                                "Seleccione una imagen"
+                            );
 
-        alert(
-            error.message
-        );
-    }
-});
+                            return;
+                        }
 
-</script>
+                        // =====================================
+                        // CARGAR TEMPLATE
+                        // =====================================
+
+                        const response =
+                            await fetch(
+                                "template.docx"
+                            );
+
+                        console.log(
+                            "STATUS TEMPLATE:",
+                            response.status
+                        );
+
+                        if (!response.ok) {
+
+                            throw new Error(
+                                "No existe template.docx"
+                            );
+                        }
+
+                        // =====================================
+                        // LEER WORD
+                        // =====================================
+
+                        const arrayBuffer =
+                            await response.arrayBuffer();
+
+                        // =====================================
+                        // ZIP WORD
+                        // =====================================
+
+                        const zip =
+                            new PizZip(
+                                arrayBuffer
+                            );
+
+                        // =====================================
+                        // MODULO IMAGEN
+                        // =====================================
+
+                        const imageModule =
+                            new ImageModule({
+
+                                centered: false,
+
+                                getImage:
+                                    function(tagValue) {
+
+                                        console.log(
+                                            "Procesando imagen..."
+                                        );
+
+                                        const base64Data =
+                                            tagValue.split(",")[1];
+
+                                        const binaryString =
+                                            atob(base64Data);
+
+                                        const len =
+                                            binaryString.length;
+
+                                        const bytes =
+                                            new Uint8Array(len);
+
+                                        for (
+                                            let i = 0;
+                                            i < len;
+                                            i++
+                                        ) {
+
+                                            bytes[i] =
+                                                binaryString.charCodeAt(i);
+                                        }
+
+                                        return bytes;
+                                    },
+
+                                getSize:
+                                    function() {
+
+                                        // ancho x alto
+                                        return [300, 200];
+                                    }
+                            });
+
+                        // =====================================
+                        // CREAR DOCUMENTO
+                        // =====================================
+
+                        const doc =
+                            new window.docxtemplater(
+                                zip,
+                                {
+                                    modules: [
+                                        imageModule
+                                    ],
+                                    paragraphLoop: true,
+                                    linebreaks: true
+                                }
+                            );
+
+                        // =====================================
+                        // REEMPLAZAR VARIABLES
+                        // =====================================
+
+                        doc.render({
+
+                            imagen:
+                                selectedImage
+                        });
+
+                        // =====================================
+                        // GENERAR WORD
+                        // =====================================
+
+                        const blob =
+                            doc.getZip().generate({
+
+                                type: "blob",
+
+                                mimeType:
+                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            });
+
+                        // =====================================
+                        // DESCARGAR
+                        // =====================================
+
+                        saveAs(
+                            blob,
+                            "documento.docx"
+                        );
+
+                        console.log(
+                            "WORD generado OK"
+                        );
+                    }
+                    catch(error) {
+
+                        console.error(
+                            "ERROR:",
+                            error
+                        );
+
+                        alert(
+                            error.message
+                        );
+                    }
+                }
+            );
+
+    </script>
 
 </body>
+
 </html>
