@@ -6,66 +6,92 @@
     <meta charset="UTF-8">
 
     <title>
-        ArcGIS a Word
+        ArcGIS → Word
     </title>
 
-    <!-- ArcGIS -->
+    <!-- ===================================================== -->
+    <!-- ARCGIS CSS -->
+    <!-- ===================================================== -->
+
     <link
         rel="stylesheet"
         href="https://js.arcgis.com/4.29/esri/themes/light/main.css"
     >
 
+    <!-- ===================================================== -->
+    <!-- ESTILOS -->
+    <!-- ===================================================== -->
+
     <style>
 
         body {
 
-            font-family: Arial;
+            font-family: "Segoe UI", sans-serif;
 
-            margin: 20px;
+            background: #f0f2f5;
+
+            margin: 0;
+
+            padding: 20px;
 
             text-align: center;
-
-            background: #f2f2f2;
         }
 
         .card {
 
             background: white;
 
-            padding: 20px;
+            padding: 25px;
 
-            border-radius: 10px;
+            border-radius: 12px;
+
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 
             max-width: 1000px;
 
             margin: auto;
         }
 
+        #status {
+
+            margin-bottom: 15px;
+
+            font-weight: bold;
+
+            color: #0056b3;
+        }
+
         #map-view {
 
             width: 100%;
 
-            height: 500px;
+            height: 550px;
+
+            border-radius: 8px;
 
             margin-bottom: 20px;
         }
 
         #final-preview {
 
+            display: none;
+
             width: 100%;
 
-            display: none;
+            border: 2px solid #27ae60;
+
+            border-radius: 8px;
 
             margin-bottom: 20px;
         }
 
         .btn {
 
-            padding: 12px 25px;
-
             background: #27ae60;
 
             color: white;
+
+            padding: 12px 30px;
 
             border: none;
 
@@ -75,7 +101,46 @@
 
             font-size: 16px;
 
+            font-weight: bold;
+
             display: none;
+        }
+
+        .btn:hover {
+
+            background: #219150;
+        }
+
+        .loader {
+
+            border: 4px solid #f3f3f3;
+
+            border-top: 4px solid #3498db;
+
+            border-radius: 50%;
+
+            width: 30px;
+
+            height: 30px;
+
+            animation: spin 1s linear infinite;
+
+            display: none;
+
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+
+            0% {
+
+                transform: rotate(0deg);
+            }
+
+            100% {
+
+                transform: rotate(360deg);
+            }
         }
 
     </style>
@@ -91,32 +156,41 @@
     </h2>
 
     <div id="status">
-        Iniciando...
+
+        Iniciando motor GIS...
     </div>
+
+    <div
+        id="loader"
+        class="loader"
+    ></div>
 
     <div id="map-view"></div>
 
-    <img id="final-preview">
+    <img
+        id="final-preview"
+        alt="Imagen PNG"
+    >
 
     <button
         id="btn-word"
         class="btn"
     >
-        Descargar Word
+        Generar Word
     </button>
 
 </div>
 
-<!-- ArcGIS -->
+<!-- ===================================================== -->
+<!-- ARCGIS -->
+<!-- ===================================================== -->
+
 <script src="https://js.arcgis.com/4.29/"></script>
 
-<!-- docx -->
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<!-- ===================================================== -->
+<!-- APP -->
+<!-- ===================================================== -->
 
-<!-- filesaver -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-<!-- app -->
 <script src="app.js"></script>
 
 </body>
