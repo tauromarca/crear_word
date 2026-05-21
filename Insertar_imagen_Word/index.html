@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Generar Word con Imagen</title>
+    <title>Insertar Imagen Word</title>
 </head>
 
 <body>
 
-    <h2>Insertar Imagen en Word</h2>
+    <h2>Generar Word con Imagen</h2>
 
     <input
         type="file"
@@ -20,50 +20,27 @@
         Generar Word
     </button>
 
-    <!-- ===================================================== -->
+    <!-- ========================================= -->
     <!-- LIBRERIAS -->
-    <!-- ===================================================== -->
+    <!-- ========================================= -->
 
-    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js"></script>
-
-    <script src="https://unpkg.com/docxtemplater@3.37.9/build/docxtemplater.js"></script>
-
-    <script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <!-- ===================================================== -->
+    <!-- ========================================= -->
     <!-- CODIGO -->
-    <!-- ===================================================== -->
+    <!-- ========================================= -->
 
     <script>
 
-        console.log("HTML cargado OK");
+        console.log("HTML OK");
 
-        console.log(
-            "PizZip:",
-            typeof PizZip
-        );
+        let selectedFile = null;
 
-        console.log(
-            "docxtemplater:",
-            typeof docxtemplater
-        );
-
-        console.log(
-            "ImageModule:",
-            typeof ImageModule
-        );
-
-        // =====================================================
-        // VARIABLE GLOBAL IMAGEN
-        // =====================================================
-
-        let selectedImage = null;
-
-        // =====================================================
+        // =====================================
         // SELECCIONAR IMAGEN
-        // =====================================================
+        // =====================================
 
         document
             .getElementById("imageInput")
@@ -71,39 +48,19 @@
                 "change",
                 function(event) {
 
-                    const file =
+                    selectedFile =
                         event.target.files[0];
 
-                    if (!file) {
-                        return;
-                    }
-
                     console.log(
-                        "Archivo seleccionado:",
-                        file.name
+                        "Imagen seleccionada:",
+                        selectedFile
                     );
-
-                    const reader =
-                        new FileReader();
-
-                    reader.onload =
-                        function(e) {
-
-                            selectedImage =
-                                e.target.result;
-
-                            console.log(
-                                "Imagen cargada OK"
-                            );
-                        };
-
-                    reader.readAsDataURL(file);
                 }
             );
 
-        // =====================================================
+        // =====================================
         // GENERAR WORD
-        // =====================================================
+        // =====================================
 
         document
             .getElementById("generateBtn")
@@ -113,151 +70,81 @@
 
                     try {
 
-                        console.log(
-                            "Generando Word..."
-                        );
-
-                        // =====================================
-                        // VALIDAR IMAGEN
-                        // =====================================
-
-                        if (!selectedImage) {
+                        if (!selectedFile) {
 
                             alert(
-                                "Seleccione una imagen"
+                                "Seleccione imagen"
                             );
 
                             return;
                         }
 
-                        // =====================================
-                        // CARGAR TEMPLATE
-                        // =====================================
+                        // ============================
+                        // LEER IMAGEN
+                        // ============================
 
-                        const response =
-                            await fetch(
-                                "template.docx"
-                            );
+                        const imageBuffer =
+                            await selectedFile.arrayBuffer();
 
-                        console.log(
-                            "STATUS TEMPLATE:",
-                            response.status
-                        );
-
-                        if (!response.ok) {
-
-                            throw new Error(
-                                "No existe template.docx"
-                            );
-                        }
-
-                        // =====================================
-                        // LEER WORD
-                        // =====================================
-
-                        const arrayBuffer =
-                            await response.arrayBuffer();
-
-                        // =====================================
-                        // ZIP WORD
-                        // =====================================
-
-                        const zip =
-                            new PizZip(
-                                arrayBuffer
-                            );
-
-                        // =====================================
-                        // MODULO IMAGEN
-                        // =====================================
-
-                        const imageModule =
-                            new ImageModule({
-
-                                centered: false,
-
-                                getImage:
-                                    function(tagValue) {
-
-                                        console.log(
-                                            "Procesando imagen..."
-                                        );
-
-                                        const base64Data =
-                                            tagValue.split(",")[1];
-
-                                        const binaryString =
-                                            atob(base64Data);
-
-                                        const len =
-                                            binaryString.length;
-
-                                        const bytes =
-                                            new Uint8Array(len);
-
-                                        for (
-                                            let i = 0;
-                                            i < len;
-                                            i++
-                                        ) {
-
-                                            bytes[i] =
-                                                binaryString.charCodeAt(i);
-                                        }
-
-                                        return bytes;
-                                    },
-
-                                getSize:
-                                    function() {
-
-                                        // ancho x alto
-                                        return [300, 200];
-                                    }
-                            });
-
-                        // =====================================
+                        // ============================
                         // CREAR DOCUMENTO
-                        // =====================================
+                        // ============================
 
                         const doc =
-                            new window.docxtemplater(
-                                zip,
-                                {
-                                    modules: [
-                                        imageModule
-                                    ],
-                                    paragraphLoop: true,
-                                    linebreaks: true
-                                }
-                            );
+                            new docx.Document({
 
-                        // =====================================
-                        // REEMPLAZAR VARIABLES
-                        // =====================================
+                                sections: [
 
-                        doc.render({
+                                    {
 
-                            imagen:
-                                selectedImage
-                        });
+                                        properties: {},
 
-                        // =====================================
-                        // GENERAR WORD
-                        // =====================================
+                                        children: [
 
-                        const blob =
-                            doc.getZip().generate({
+                                            new docx.Paragraph({
 
-                                type: "blob",
+                                                children: [
 
-                                mimeType:
-                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                                    new docx.TextRun({
+                                                        text: "Imagen insertada:",
+                                                        break: 2
+                                                    })
+                                                ]
+                                            }),
+
+                                            new docx.Paragraph({
+
+                                                children: [
+
+                                                    new docx.ImageRun({
+
+                                                        data:
+                                                            imageBuffer,
+
+                                                        transformation: {
+
+                                                            width: 400,
+                                                            height: 300
+                                                        }
+                                                    })
+                                                ]
+                                            })
+                                        ]
+                                    }
+                                ]
                             });
 
-                        // =====================================
+                        // ============================
+                        // GENERAR WORD
+                        // ============================
+
+                        const blob =
+                            await docx.Packer
+                            .toBlob(doc);
+
+                        // ============================
                         // DESCARGAR
-                        // =====================================
+                        // ============================
 
                         saveAs(
                             blob,
