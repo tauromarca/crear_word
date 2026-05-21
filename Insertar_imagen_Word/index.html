@@ -41,7 +41,7 @@ document.getElementById("generateBtn").addEventListener("click", async function(
     }
 
     // cargar plantilla word
-    const response = await fetch("template.docx");
+    const response = await fetch("documento.docx");
     const arrayBuffer = await response.arrayBuffer();
 
     const zip = new PizZip(arrayBuffer);
