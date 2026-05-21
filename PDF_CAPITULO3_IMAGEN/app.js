@@ -40,6 +40,7 @@
             new OAuthInfo({
 
                 appId: APP_ID,
+
                 popup: false
             });
 
@@ -48,7 +49,7 @@
         ]);
 
         // =====================================================
-        // FUNCION PRINCIPAL
+        // MAIN
         // =====================================================
 
         async function ejecutar() {
@@ -127,7 +128,7 @@
                 await view.when();
 
                 // =============================================
-                // FEATURE LAYER
+                // CAPA
                 // =============================================
 
                 status.textContent =
@@ -173,7 +174,7 @@
                 ) {
 
                     throw new Error(
-                        "Sin geometría"
+                        "El registro no tiene geometría"
                     );
                 }
 
@@ -282,11 +283,15 @@
                     "none";
 
                 // =============================================
-                // BOTON WORD
+                // MOSTRAR BOTON WORD
                 // =============================================
 
                 btnWord.style.display =
                     "inline-block";
+
+                // =============================================
+                // BOTON WORD
+                // =============================================
 
                 btnWord.onclick =
                     async function () {
@@ -296,85 +301,110 @@
                             status.textContent =
                                 "📝 Generando Word...";
 
-                            // ============================
-                            // BASE64 → ARRAY BUFFER
-                            // ============================
+                            // =====================================
+                            // TEMPLATE
+                            // =====================================
 
                             const response =
                                 await fetch(
-                                    screenshot.dataUrl
+                                    "template.docx"
                                 );
 
-                            const imageBuffer =
+                            if (!response.ok) {
+
+                                throw new Error(
+                                    "No existe template.docx"
+                                );
+                            }
+
+                            const arrayBuffer =
                                 await response.arrayBuffer();
 
-                            // ============================
-                            // CREAR WORD
-                            // ============================
+                            // =====================================
+                            // ZIP
+                            // =====================================
 
-                            const doc =
-                                new docx.Document({
+                            const zip =
+                                new PizZip(
+                                    arrayBuffer
+                                );
 
-                                    sections: [
+                            // =====================================
+                            // MODULO IMAGEN
+                            // =====================================
 
-                                        {
+                            const imageModule =
+                                new ImageModule({
 
-                                            properties: {},
+                                    centered: false,
 
-                                            children: [
+                                    getImage:
+                                        function(tagValue) {
 
-                                                new docx.Paragraph({
+                                            const base64Data =
+                                                tagValue.split(",")[1];
 
-                                                    children: [
+                                            return Uint8Array.from(
 
-                                                        new docx.TextRun({
+                                                atob(base64Data),
 
-                                                            text:
-                                                                `Polígono OBJECTID ${oid}`,
+                                                c => c.charCodeAt(0)
+                                            );
+                                        },
 
-                                                            break: 2,
+                                    getSize:
+                                        function() {
 
-                                                            bold: true,
-
-                                                            size: 32
-                                                        })
-                                                    ]
-                                                }),
-
-                                                new docx.Paragraph({
-
-                                                    children: [
-
-                                                        new docx.ImageRun({
-
-                                                            data:
-                                                                imageBuffer,
-
-                                                            transformation: {
-
-                                                                width: 600,
-
-                                                                height: 350
-                                                            }
-                                                        })
-                                                    ]
-                                                })
-                                            ]
+                                            return [600, 350];
                                         }
-                                    ]
                                 });
 
-                            // ============================
+                            // =====================================
+                            // DOCXTEMPLATER
+                            // =====================================
+
+                            const doc =
+                                new window.docxtemplater(
+
+                                    zip,
+
+                                    {
+                                        modules: [
+                                            imageModule
+                                        ],
+
+                                        paragraphLoop: true,
+
+                                        linebreaks: true
+                                    }
+                                );
+
+                            // =====================================
+                            // REEMPLAZAR VARIABLE
+                            // =====================================
+
+                            doc.render({
+
+                                imagen:
+                                    screenshot.dataUrl
+                            });
+
+                            // =====================================
                             // GENERAR DOCX
-                            // ============================
+                            // =====================================
 
                             const blob =
-                                await docx.Packer
-                                .toBlob(doc);
+                                doc.getZip().generate({
 
-                            // ============================
+                                    type: "blob",
+
+                                    mimeType:
+                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                });
+
+                            // =====================================
                             // DESCARGAR
-                            // ============================
+                            // =====================================
 
                             saveAs(
 
@@ -391,7 +421,7 @@
                             console.error(error);
 
                             status.textContent =
-                                "❌ Error Word";
+                                "❌ Error Word: " + error.message;
                         }
                     };
 
