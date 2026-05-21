@@ -1,102 +1,208 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Generador de Imagen de Polígono</title>
 
-    <!-- ArcGIS CSS -->
-    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        Generador Word desde ArcGIS
+    </title>
+
+    <!-- ========================================= -->
+    <!-- ARCGIS CSS -->
+    <!-- ========================================= -->
+
+    <link
+        rel="stylesheet"
+        href="https://js.arcgis.com/4.29/esri/themes/light/main.css"
+    >
+
+    <!-- ========================================= -->
+    <!-- ESTILOS -->
+    <!-- ========================================= -->
 
     <style>
+
         body {
-            font-family: 'Segoe UI', sans-serif;
+
+            font-family: "Segoe UI", sans-serif;
+
             background: #f0f2f5;
+
             margin: 0;
+
             padding: 20px;
+
             text-align: center;
         }
 
         .card {
+
             background: white;
+
             padding: 25px;
+
             border-radius: 12px;
+
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            max-width: 900px;
+
+            max-width: 1000px;
+
             margin: auto;
         }
 
         #status {
+
             margin-bottom: 15px;
+
             font-weight: bold;
+
             color: #0056b3;
         }
 
         #map-view {
+
             width: 100%;
-            height: 500px;
+
+            height: 550px;
+
             border-radius: 8px;
+
             margin-bottom: 20px;
         }
 
         #final-preview {
+
             display: none;
+
             width: 100%;
+
             border: 2px solid #27ae60;
+
             border-radius: 8px;
+
             margin-bottom: 20px;
         }
 
         .btn {
+
             background: #27ae60;
+
             color: white;
+
             padding: 12px 30px;
+
             border: none;
+
             border-radius: 6px;
+
             cursor: pointer;
+
             font-size: 16px;
+
             font-weight: bold;
+
             display: none;
         }
 
         .btn:hover {
+
             background: #219150;
         }
 
         .loader {
+
             border: 4px solid #f3f3f3;
+
             border-top: 4px solid #3498db;
+
             border-radius: 50%;
+
             width: 30px;
+
             height: 30px;
+
             animation: spin 1s linear infinite;
+
             display: none;
+
             margin: 10px auto;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+            0% {
+
+                transform: rotate(0deg);
+            }
+
+            100% {
+
+                transform: rotate(360deg);
+            }
         }
+
     </style>
+
 </head>
 
 <body>
-<div class="card">
-    <h2>Mapa del Polígono Institucional</h2>
 
-    <div id="status">Iniciando motor GIS...</div>
-    <div id="loader" class="loader"></div>
+    <div class="card">
 
-    <div id="map-view"></div>
+        <h2>
+            Generador Word desde ArcGIS
+        </h2>
 
-    <img id="final-preview" alt="Imagen PNG generada">
+        <div id="status">
 
-    <button id="btn-download" class="btn">Descargar Archivo PNG</button>
-</div>
+            Iniciando motor GIS...
+        </div>
 
-<!-- Librerías -->
-<script src="https://js.arcgis.com/4.29/"></script>
-<script src="app.js"></script>
+        <div
+            id="loader"
+            class="loader"
+        ></div>
+
+        <div id="map-view"></div>
+
+        <img
+            id="final-preview"
+            alt="Preview PNG"
+        >
+
+        <button
+            id="btn-word"
+            class="btn"
+        >
+            Descargar Word
+        </button>
+
+    </div>
+
+    <!-- ========================================= -->
+    <!-- LIBRERIAS -->
+    <!-- ========================================= -->
+
+    <!-- ArcGIS -->
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <!-- PizZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js"></script>
+
+    <!-- Docxtemplater -->
+    <script src="https://unpkg.com/docxtemplater@3.67.1/build/docxtemplater.js"></script>
+
+    <!-- Image Module -->
+    <script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+
+    <!-- FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- APP -->
+    <script src="app.js"></script>
 
 </body>
+
 </html>
