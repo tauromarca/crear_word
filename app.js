@@ -8,7 +8,7 @@
         "esri/geometry/Polygon"
     ], function(esriRequest, esriId, Polygon) {
 
-        const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_8198050eccc3491bb7aa36011a48571b_form/FeatureServer/0";
+        const FEATURE_LAYER_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_b91310d4b733410381db831ffab56a68_form/FeatureServer";
         const PLANTILLA_URL = "PLANTILLA VISUALIZACIÓN DTC.docx";
 
         // ============================================================
