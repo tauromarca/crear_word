@@ -9,19 +9,6 @@
         Generar Word
     </title>
 
-    <style>
-
-        body {
-
-            font-family: Arial;
-
-            text-align: center;
-
-            margin-top: 50px;
-        }
-
-    </style>
-
 </head>
 
 <body>
@@ -30,16 +17,16 @@
     Generando Word...
 </h2>
 
-<!-- ===================================================== -->
-<!-- DOCX -->
-<!-- ===================================================== -->
+<!-- PIZZIP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<!-- DOCXTEMPLATER -->
+<script src="https://unpkg.com/docxtemplater@3.67.1/build/docxtemplater.js"></script>
 
-<!-- ===================================================== -->
+<!-- IMAGE MODULE -->
+<script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+
 <!-- FILE SAVER -->
-<!-- ===================================================== -->
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script>
@@ -48,9 +35,9 @@
 
     try {
 
-        // =============================================
+        // =====================================
         // LEER IMAGEN
-        // =============================================
+        // =====================================
 
         const dataUrl =
             localStorage.getItem(
@@ -59,87 +46,115 @@
 
         if (!dataUrl) {
 
-            alert(
+            throw new Error(
                 "No existe imagen"
             );
-
-            return;
         }
 
-        // =============================================
-        // BASE64 → ARRAY BUFFER
-        // =============================================
+        // =====================================
+        // TEMPLATE
+        // =====================================
 
         const response =
-            await fetch(dataUrl);
+            await fetch(
+                "template.docx"
+            );
 
-        const imageBuffer =
+        if (!response.ok) {
+
+            throw new Error(
+                "No existe template.docx"
+            );
+        }
+
+        const arrayBuffer =
             await response.arrayBuffer();
 
-        // =============================================
-        // CREAR WORD
-        // =============================================
+        // =====================================
+        // ZIP
+        // =====================================
 
-        const doc =
-            new docx.Document({
+        const zip =
+            new PizZip(
+                arrayBuffer
+            );
 
-                sections: [
+        // =====================================
+        // IMAGE MODULE
+        // =====================================
 
-                    {
+        const imageModule =
+            new ImageModule({
 
-                        properties: {},
+                centered: false,
 
-                        children: [
+                getImage:
+                    function(tagValue) {
 
-                            new docx.Paragraph({
+                        const base64Data =
+                            tagValue.split(",")[1];
 
-                                children: [
+                        return Uint8Array.from(
 
-                                    new docx.TextRun({
+                            atob(base64Data),
 
-                                        text:
-                                            "Mapa del Polígono ArcGIS",
+                            c => c.charCodeAt(0)
+                        );
+                    },
 
-                                        bold: true,
+                getSize:
+                    function() {
 
-                                        size: 32
-                                    })
-                                ]
-                            }),
-
-                            new docx.Paragraph({
-
-                                children: [
-
-                                    new docx.ImageRun({
-
-                                        data:
-                                            imageBuffer,
-
-                                        transformation: {
-
-                                            width: 600,
-
-                                            height: 350
-                                        }
-                                    })
-                                ]
-                            })
-                        ]
+                        return [600, 350];
                     }
-                ]
             });
 
-        // =============================================
+        // =====================================
+        // DOCXTEMPLATER
+        // =====================================
+
+        const doc =
+            new window.docxtemplater(
+
+                zip,
+
+                {
+                    modules: [
+                        imageModule
+                    ],
+
+                    paragraphLoop: true,
+
+                    linebreaks: true
+                }
+            );
+
+        // =====================================
+        // REEMPLAZAR VARIABLE
+        // =====================================
+
+        doc.render({
+
+            imagen:
+                dataUrl
+        });
+
+        // =====================================
         // GENERAR DOCX
-        // =============================================
+        // =====================================
 
         const blob =
-            await docx.Packer.toBlob(doc);
+            doc.getZip().generate({
 
-        // =============================================
+                type: "blob",
+
+                mimeType:
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            });
+
+        // =====================================
         // DESCARGAR
-        // =============================================
+        // =====================================
 
         saveAs(
 
@@ -149,7 +164,7 @@
         );
 
         document.body.innerHTML =
-            "<h2>✅ Word generado correctamente</h2>";
+            "<h2>✅ Word generado</h2>";
     }
     catch(error) {
 
