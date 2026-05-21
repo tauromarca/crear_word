@@ -1,91 +1,184 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Generar Word con Imagen</title>
-</head>
-<body>
-
-<input type="file" id="imageInput" accept="image/*">
-<button id="generateBtn">Generar Word</button>
-
-<script src="pizzip.min.js"></script>
-<script src="docxtemplater.js"></script>
-<script src="imagemodule.js"></script>
-<script src="FileSaver.min.js"></script>
-
 <script>
 
 let selectedImage = null;
 
-document.getElementById("imageInput").addEventListener("change", function(event) {
+document
+    .getElementById("imageInput")
+    .addEventListener("change", function(event) {
 
-    const file = event.target.files[0];
+        const file = event.target.files[0];
 
-    if (!file) return;
+        if (!file) {
+            return;
+        }
 
-    const reader = new FileReader();
+        const reader = new FileReader();
 
-    reader.onload = function(e) {
-        selectedImage = e.target.result;
-    };
+        reader.onload = function(e) {
 
-    reader.readAsDataURL(file);
-});
+            selectedImage = e.target.result;
 
-document.getElementById("generateBtn").addEventListener("click", async function() {
-
-    if (!selectedImage) {
-        alert("Seleccione una imagen");
-        return;
-    }
-
-    // cargar plantilla word
-    const response = await fetch("documento.docx");
-    const arrayBuffer = await response.arrayBuffer();
-
-    const zip = new PizZip(arrayBuffer);
-
-    const imageModule = new ImageModule({
-        centered: false,
-
-        getImage: function(tagValue) {
-
-            // convertir base64 a binary
-            const base64Data = tagValue.split(",")[1];
-
-            return Uint8Array.from(
-                atob(base64Data),
-                c => c.charCodeAt(0)
+            console.log(
+                "Imagen cargada OK"
             );
-        },
+        };
 
-        getSize: function() {
+        reader.readAsDataURL(file);
+    });
 
-            return [300, 200];
+document
+    .getElementById("generateBtn")
+    .addEventListener("click", async function() {
+
+        try {
+
+            console.log(
+                "selectedImage:",
+                selectedImage
+            );
+
+            if (!selectedImage) {
+
+                alert(
+                    "Seleccione una imagen"
+                );
+
+                return;
+            }
+
+            // =====================================
+            // cargar template
+            // =====================================
+
+            const response =
+                await fetch("documento.docx");
+
+            console.log(
+                "status template:",
+                response.status
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "No existe template.docx"
+                );
+            }
+
+            const arrayBuffer =
+                await response.arrayBuffer();
+
+            const zip =
+                new PizZip(arrayBuffer);
+
+            // =====================================
+            // modulo imagen
+            // =====================================
+
+            const imageModule =
+                new ImageModule({
+
+                    centered: false,
+
+                    getImage: function(tagValue) {
+
+                        console.log(
+                            "tagValue:",
+                            tagValue
+                        );
+
+                        if (!tagValue) {
+
+                            throw new Error(
+                                "Imagen undefined"
+                            );
+                        }
+
+                        const base64Data =
+                            tagValue.split(",")[1];
+
+                        const binaryString =
+                            atob(base64Data);
+
+                        const len =
+                            binaryString.length;
+
+                        const bytes =
+                            new Uint8Array(len);
+
+                        for (
+                            let i = 0;
+                            i < len;
+                            i++
+                        ) {
+
+                            bytes[i] =
+                                binaryString.charCodeAt(i);
+                        }
+
+                        return bytes;
+                    },
+
+                    getSize: function() {
+
+                        return [300, 200];
+                    }
+                });
+
+            // =====================================
+            // crear documento
+            // =====================================
+
+            const doc =
+                new window.docxtemplater(
+                    zip,
+                    {
+                        modules: [imageModule]
+                    }
+                );
+
+            // =====================================
+            // render
+            // =====================================
+
+            doc.render({
+                imagen: selectedImage
+            });
+
+            // =====================================
+            // generar archivo
+            // =====================================
+
+            const blob =
+                doc.getZip().generate({
+
+                    type: "blob",
+
+                    mimeType:
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                });
+
+            saveAs(
+                blob,
+                "documento1.docx"
+            );
+
+            console.log(
+                "WORD generado OK"
+            );
+
+        }
+        catch(error) {
+
+            console.error(
+                "ERROR:",
+                error
+            );
+
+            alert(
+                error.message
+            );
         }
     });
 
-    const doc = new window.docxtemplater(zip, {
-        modules: [imageModule],
-        paragraphLoop: true,
-        linebreaks: true
-    });
-
-    doc.render({
-        imagen: selectedImage
-    });
-
-    const blob = doc.getZip().generate({
-        type: "blob",
-        mimeType:
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    });
-
-    saveAs(blob, "documento.docx");
-});
-
 </script>
-
-</body>
-</html>
