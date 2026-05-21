@@ -7,105 +7,54 @@
         "esri/Map",
         "esri/views/MapView",
         "esri/layers/FeatureLayer",
-        "esri/Graphic",
-        "esri/identity/IdentityManager",
-        "esri/identity/OAuthInfo"
+        "esri/Graphic"
 
     ], function (
 
         Map,
         MapView,
         FeatureLayer,
-        Graphic,
-        esriId,
-        OAuthInfo
+        Graphic
 
     ) {
 
-        // =====================================================
-        // CONFIGURACION
-        // =====================================================
-
         const FS_URL =
             "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_b91310d4b733410381db831ffab56a68_form/FeatureServer/0";
-
-        const APP_ID =
-            "V3aGw0JQVKFM6BdJ";
-
-        // =====================================================
-        // AUTH
-        // =====================================================
-
-        const authInfo =
-            new OAuthInfo({
-
-                appId: APP_ID,
-
-                popup: false
-            });
-
-        esriId.registerOAuthInfos([
-            authInfo
-        ]);
-
-        // =====================================================
-        // MAIN
-        // =====================================================
 
         async function ejecutar() {
 
             const status =
                 document.getElementById("status");
 
-            const loader =
-                document.getElementById("loader");
-
             const btnWord =
                 document.getElementById("btn-word");
 
-            const previewImg =
+            const preview =
                 document.getElementById("final-preview");
 
-            const mapViewDiv =
-                document.getElementById("map-view");
-
-            const urlParams =
+            const params =
                 new URLSearchParams(
                     window.location.search
                 );
 
             const oid =
-                urlParams.get("objectid")
+                params.get("objectid")
                 ||
-                urlParams.get("oid");
+                params.get("oid");
 
             if (!oid) {
 
                 status.textContent =
-                    "❌ Falta objectid";
+                    "Falta objectid";
 
                 return;
             }
 
-            loader.style.display =
-                "block";
-
             try {
 
-                // =============================================
-                // LOGIN
-                // =============================================
-
-                status.textContent =
-                    "🔐 Autenticando...";
-
-                await esriId.getCredential(
-                    "https://www.arcgis.com/sharing"
-                );
-
-                // =============================================
+                // =====================================
                 // MAPA
-                // =============================================
+                // =====================================
 
                 const map =
                     new Map({
@@ -127,12 +76,9 @@
 
                 await view.when();
 
-                // =============================================
+                // =====================================
                 // CAPA
-                // =============================================
-
-                status.textContent =
-                    "📡 Consultando capa...";
+                // =====================================
 
                 const layer =
                     new FeatureLayer({
@@ -144,13 +90,10 @@
                     layer.createQuery();
 
                 query.where =
-                    `objectid = ${oid}`;
+                    `objectid=${oid}`;
 
                 query.returnGeometry =
                     true;
-
-                query.outFields =
-                    ["*"];
 
                 const result =
                     await layer.queryFeatures(
@@ -162,28 +105,16 @@
                 ) {
 
                     throw new Error(
-                        "No se encontró polígono"
+                        "No existe polígono"
                     );
                 }
 
                 const feature =
                     result.features[0];
 
-                if (
-                    !feature.geometry
-                ) {
-
-                    throw new Error(
-                        "El registro no tiene geometría"
-                    );
-                }
-
-                // =============================================
+                // =====================================
                 // GRAFICO
-                // =============================================
-
-                status.textContent =
-                    "🧩 Dibujando polígono...";
+                // =====================================
 
                 const graphic =
                     new Graphic({
@@ -197,27 +128,21 @@
                                 "simple-fill",
 
                             color:
-                                [255, 0, 0, 0.25],
+                                [255,0,0,0.25],
 
                             outline: {
 
                                 color:
-                                    [255, 0, 0, 1],
+                                    [255,0,0],
 
                                 width: 2
                             }
                         }
                     });
 
-                view.graphics.removeAll();
-
                 view.graphics.add(
                     graphic
                 );
-
-                // =============================================
-                // ZOOM
-                // =============================================
 
                 await view.goTo({
 
@@ -227,20 +152,15 @@
                     padding: 40
                 });
 
-                // =============================================
-                // ESPERAR RENDER
-                // =============================================
-
-                await view.when();
-
+                // esperar render
                 await new Promise(resolve => {
 
                     const handle =
                         view.watch(
                             "updating",
-                            (val) => {
+                            val => {
 
-                                if (val === false) {
+                                if (!val) {
 
                                     handle.remove();
 
@@ -250,48 +170,35 @@
                         );
                 });
 
-                // =============================================
+                // =====================================
                 // SCREENSHOT
-                // =============================================
+                // =====================================
 
                 status.textContent =
-                    "📸 Generando imagen...";
+                    "Generando imagen...";
 
                 const screenshot =
                     await view.takeScreenshot({
 
                         format: "png",
 
-                        quality: 100,
-
                         width: 1920,
 
                         height: 1080
                     });
 
-                // =============================================
-                // PREVIEW
-                // =============================================
-
-                previewImg.src =
+                preview.src =
                     screenshot.dataUrl;
 
-                previewImg.style.display =
+                preview.style.display =
                     "block";
 
-                mapViewDiv.style.display =
-                    "none";
-
-                // =============================================
-                // MOSTRAR BOTON WORD
-                // =============================================
+                // =====================================
+                // BOTON WORD
+                // =====================================
 
                 btnWord.style.display =
                     "inline-block";
-
-                // =============================================
-                // BOTON WORD
-                // =============================================
 
                 btnWord.onclick =
                     async function () {
@@ -299,112 +206,82 @@
                         try {
 
                             status.textContent =
-                                "📝 Generando Word...";
+                                "Generando Word...";
 
-                            // =====================================
-                            // TEMPLATE
-                            // =====================================
+                            // =========================
+                            // IMG BUFFER
+                            // =========================
 
                             const response =
                                 await fetch(
-                                    "template.docx"
+                                    screenshot.dataUrl
                                 );
 
-                            if (!response.ok) {
-
-                                throw new Error(
-                                    "No existe template.docx"
-                                );
-                            }
-
-                            const arrayBuffer =
+                            const imageBuffer =
                                 await response.arrayBuffer();
 
-                            // =====================================
-                            // ZIP
-                            // =====================================
-
-                            const zip =
-                                new PizZip(
-                                    arrayBuffer
-                                );
-
-                            // =====================================
-                            // MODULO IMAGEN
-                            // =====================================
-
-                            const imageModule =
-                                new ImageModule({
-
-                                    centered: false,
-
-                                    getImage:
-                                        function(tagValue) {
-
-                                            const base64Data =
-                                                tagValue.split(",")[1];
-
-                                            return Uint8Array.from(
-
-                                                atob(base64Data),
-
-                                                c => c.charCodeAt(0)
-                                            );
-                                        },
-
-                                    getSize:
-                                        function() {
-
-                                            return [600, 350];
-                                        }
-                                });
-
-                            // =====================================
-                            // DOCXTEMPLATER
-                            // =====================================
+                            // =========================
+                            // WORD
+                            // =========================
 
                             const doc =
-                                new window.docxtemplater(
+                                new docx.Document({
 
-                                    zip,
+                                    sections: [
 
-                                    {
-                                        modules: [
-                                            imageModule
-                                        ],
+                                        {
 
-                                        paragraphLoop: true,
+                                            children: [
 
-                                        linebreaks: true
-                                    }
-                                );
+                                                new docx.Paragraph({
 
-                            // =====================================
-                            // REEMPLAZAR VARIABLE
-                            // =====================================
+                                                    children: [
 
-                            doc.render({
+                                                        new docx.TextRun({
 
-                                imagen:
-                                    screenshot.dataUrl
-                            });
+                                                            text:
+                                                                "Mapa del Polígono",
 
-                            // =====================================
-                            // GENERAR DOCX
-                            // =====================================
+                                                            bold: true,
 
-                            const blob =
-                                doc.getZip().generate({
+                                                            size: 32
+                                                        })
+                                                    ]
+                                                }),
 
-                                    type: "blob",
+                                                new docx.Paragraph({
 
-                                    mimeType:
-                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                                    children: [
+
+                                                        new docx.ImageRun({
+
+                                                            data:
+                                                                imageBuffer,
+
+                                                            transformation: {
+
+                                                                width: 600,
+
+                                                                height: 350
+                                                            }
+                                                        })
+                                                    ]
+                                                })
+                                            ]
+                                        }
+                                    ]
                                 });
 
-                            // =====================================
+                            // =========================
+                            // BLOB
+                            // =========================
+
+                            const blob =
+                                await docx.Packer.toBlob(doc);
+
+                            // =========================
                             // DESCARGAR
-                            // =====================================
+                            // =========================
 
                             saveAs(
 
@@ -414,37 +291,31 @@
                             );
 
                             status.textContent =
-                                "✅ Word generado";
+                                "Word generado";
                         }
                         catch (error) {
 
                             console.error(error);
 
                             status.textContent =
-                                "❌ Error Word: " + error.message;
+                                error.message;
                         }
                     };
 
-                loader.style.display =
-                    "none";
-
                 status.textContent =
-                    "✅ Imagen lista";
-
+                    "Imagen lista";
             }
             catch (error) {
 
                 console.error(error);
 
-                loader.style.display =
-                    "none";
-
                 status.textContent =
-                    "❌ " + error.message;
+                    error.message;
             }
         }
 
         ejecutar();
+
     });
 
 })();
