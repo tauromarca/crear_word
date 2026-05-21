@@ -11,10 +11,10 @@
 
     ], function (
 
-        Map,
-        MapView,
-        FeatureLayer,
-        Graphic
+        EsriMap,
+        EsriMapView,
+        EsriFeatureLayer,
+        EsriGraphic
 
     ) {
 
@@ -57,13 +57,13 @@
                 // =====================================
 
                 const map =
-                    new Map({
+                    new EsriMap({
 
                         basemap: "hybrid"
                     });
 
                 const view =
-                    new MapView({
+                    new EsriMapView({
 
                         container: "map-view",
 
@@ -81,7 +81,7 @@
                 // =====================================
 
                 const layer =
-                    new FeatureLayer({
+                    new EsriFeatureLayer({
 
                         url: FS_URL
                     });
@@ -117,7 +117,7 @@
                 // =====================================
 
                 const graphic =
-                    new Graphic({
+                    new EsriGraphic({
 
                         geometry:
                             feature.geometry,
@@ -144,6 +144,10 @@
                     graphic
                 );
 
+                // =====================================
+                // ZOOM
+                // =====================================
+
                 await view.goTo({
 
                     target:
@@ -152,7 +156,10 @@
                     padding: 40
                 });
 
-                // esperar render
+                // =====================================
+                // ESPERAR RENDER
+                // =====================================
+
                 await new Promise(resolve => {
 
                     const handle =
@@ -273,7 +280,7 @@
                                 });
 
                             // =========================
-                            // BLOB
+                            // GENERAR DOCX
                             // =========================
 
                             const blob =
