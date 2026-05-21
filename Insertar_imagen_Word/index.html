@@ -14,12 +14,13 @@
   Generar Word
 </button>
 
-<script src="pizzip.min.js"></script>
-<script src="docxtemplater.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.9/docxtemplater.js"></script>
 
 <script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
 
-<script src="FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script>
 
@@ -28,7 +29,7 @@ console.log("HTML cargado OK");
 let selectedImage = null;
 
 // ======================================
-// INPUT IMAGEN
+// CARGAR IMAGEN
 // ======================================
 
 document
@@ -47,7 +48,9 @@ document
 
         selectedImage = e.target.result;
 
-        console.log("Imagen cargada");
+        console.log(
+            "Imagen cargada"
+        );
     };
 
     reader.readAsDataURL(file);
@@ -65,11 +68,14 @@ document
 
         if (!selectedImage) {
 
-            alert("Seleccione imagen");
+            alert(
+                "Seleccione imagen"
+            );
 
             return;
         }
 
+        // cargar template
         const response =
             await fetch("template.docx");
 
@@ -86,6 +92,7 @@ document
         const zip =
             new PizZip(arrayBuffer);
 
+        // modulo imagen
         const imageModule =
             new ImageModule({
 
@@ -96,26 +103,10 @@ document
                     const base64Data =
                         tagValue.split(",")[1];
 
-                    const binaryString =
-                        atob(base64Data);
-
-                    const len =
-                        binaryString.length;
-
-                    const bytes =
-                        new Uint8Array(len);
-
-                    for (
-                        let i = 0;
-                        i < len;
-                        i++
-                    ) {
-
-                        bytes[i] =
-                            binaryString.charCodeAt(i);
-                    }
-
-                    return bytes;
+                    return Uint8Array.from(
+                        atob(base64Data),
+                        c => c.charCodeAt(0)
+                    );
                 },
 
                 getSize: function() {
@@ -124,6 +115,7 @@ document
                 }
             });
 
+        // documento
         const doc =
             new window.docxtemplater(
                 zip,
@@ -132,10 +124,12 @@ document
                 }
             );
 
+        // reemplazo
         doc.render({
             imagen: selectedImage
         });
 
+        // generar word
         const blob =
             doc.getZip().generate({
 
@@ -156,9 +150,14 @@ document
     }
     catch(error) {
 
-        console.error(error);
+        console.error(
+            "ERROR:",
+            error
+        );
 
-        alert(error.message);
+        alert(
+            error.message
+        );
     }
 });
 
