@@ -20,21 +20,24 @@
         Generar Word
     </button>
 
-    <!-- ========================================= -->
+    <!-- ===================================== -->
     <!-- LIBRERIAS -->
-    <!-- ========================================= -->
+    <!-- ===================================== -->
 
-    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <!-- ========================================= -->
+    <!-- ===================================== -->
     <!-- CODIGO -->
-    <!-- ========================================= -->
+    <!-- ===================================== -->
 
     <script>
 
-        console.log("HTML OK");
+        console.log(
+            "docx:",
+            typeof docx
+        );
 
         let selectedFile = null;
 
@@ -79,16 +82,16 @@
                             return;
                         }
 
-                        // ============================
+                        // ==========================
                         // LEER IMAGEN
-                        // ============================
+                        // ==========================
 
                         const imageBuffer =
                             await selectedFile.arrayBuffer();
 
-                        // ============================
+                        // ==========================
                         // CREAR DOCUMENTO
-                        // ============================
+                        // ==========================
 
                         const doc =
                             new docx.Document({
@@ -106,7 +109,10 @@
                                                 children: [
 
                                                     new docx.TextRun({
-                                                        text: "Imagen insertada:",
+
+                                                        text:
+                                                            "Imagen insertada en Word",
+
                                                         break: 2
                                                     })
                                                 ]
@@ -124,6 +130,7 @@
                                                         transformation: {
 
                                                             width: 400,
+
                                                             height: 300
                                                         }
                                                     })
@@ -134,17 +141,16 @@
                                 ]
                             });
 
-                        // ============================
-                        // GENERAR WORD
-                        // ============================
+                        // ==========================
+                        // GENERAR ARCHIVO
+                        // ==========================
 
                         const blob =
-                            await docx.Packer
-                            .toBlob(doc);
+                            await docx.Packer.toBlob(doc);
 
-                        // ============================
+                        // ==========================
                         // DESCARGAR
-                        // ============================
+                        // ==========================
 
                         saveAs(
                             blob,
