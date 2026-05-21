@@ -1,184 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Generar Word con Imagen</title>
+</head>
+
+<body>
+
+<input type="file" id="imageInput" accept="image/*">
+
+<button id="generateBtn">
+  Generar Word
+</button>
+
+<script src="pizzip.min.js"></script>
+<script src="docxtemplater.js"></script>
+
+<script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+
+<script src="FileSaver.min.js"></script>
+
 <script>
+
+console.log("HTML cargado OK");
 
 let selectedImage = null;
 
+// ======================================
+// INPUT IMAGEN
+// ======================================
+
 document
-    .getElementById("imageInput")
-    .addEventListener("change", function(event) {
+.getElementById("imageInput")
+.addEventListener("change", function(event) {
 
-        const file = event.target.files[0];
+    const file = event.target.files[0];
 
-        if (!file) {
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+
+        selectedImage = e.target.result;
+
+        console.log("Imagen cargada");
+    };
+
+    reader.readAsDataURL(file);
+});
+
+// ======================================
+// GENERAR WORD
+// ======================================
+
+document
+.getElementById("generateBtn")
+.addEventListener("click", async function() {
+
+    try {
+
+        if (!selectedImage) {
+
+            alert("Seleccione imagen");
+
             return;
         }
 
-        const reader = new FileReader();
+        const response =
+            await fetch("template.docx");
 
-        reader.onload = function(e) {
+        if (!response.ok) {
 
-            selectedImage = e.target.result;
-
-            console.log(
-                "Imagen cargada OK"
+            throw new Error(
+                "No existe template.docx"
             );
-        };
+        }
 
-        reader.readAsDataURL(file);
-    });
+        const arrayBuffer =
+            await response.arrayBuffer();
 
-document
-    .getElementById("generateBtn")
-    .addEventListener("click", async function() {
+        const zip =
+            new PizZip(arrayBuffer);
 
-        try {
+        const imageModule =
+            new ImageModule({
 
-            console.log(
-                "selectedImage:",
-                selectedImage
-            );
+                centered: false,
 
-            if (!selectedImage) {
+                getImage: function(tagValue) {
 
-                alert(
-                    "Seleccione una imagen"
-                );
+                    const base64Data =
+                        tagValue.split(",")[1];
 
-                return;
-            }
+                    const binaryString =
+                        atob(base64Data);
 
-            // =====================================
-            // cargar template
-            // =====================================
+                    const len =
+                        binaryString.length;
 
-            const response =
-                await fetch("template.docx");
+                    const bytes =
+                        new Uint8Array(len);
 
-            console.log(
-                "status template:",
-                response.status
-            );
+                    for (
+                        let i = 0;
+                        i < len;
+                        i++
+                    ) {
 
-            if (!response.ok) {
-
-                throw new Error(
-                    "No existe template.docx"
-                );
-            }
-
-            const arrayBuffer =
-                await response.arrayBuffer();
-
-            const zip =
-                new PizZip(arrayBuffer);
-
-            // =====================================
-            // modulo imagen
-            // =====================================
-
-            const imageModule =
-                new ImageModule({
-
-                    centered: false,
-
-                    getImage: function(tagValue) {
-
-                        console.log(
-                            "tagValue:",
-                            tagValue
-                        );
-
-                        if (!tagValue) {
-
-                            throw new Error(
-                                "Imagen undefined"
-                            );
-                        }
-
-                        const base64Data =
-                            tagValue.split(",")[1];
-
-                        const binaryString =
-                            atob(base64Data);
-
-                        const len =
-                            binaryString.length;
-
-                        const bytes =
-                            new Uint8Array(len);
-
-                        for (
-                            let i = 0;
-                            i < len;
-                            i++
-                        ) {
-
-                            bytes[i] =
-                                binaryString.charCodeAt(i);
-                        }
-
-                        return bytes;
-                    },
-
-                    getSize: function() {
-
-                        return [300, 200];
+                        bytes[i] =
+                            binaryString.charCodeAt(i);
                     }
-                });
 
-            // =====================================
-            // crear documento
-            // =====================================
+                    return bytes;
+                },
 
-            const doc =
-                new window.docxtemplater(
-                    zip,
-                    {
-                        modules: [imageModule]
-                    }
-                );
+                getSize: function() {
 
-            // =====================================
-            // render
-            // =====================================
-
-            doc.render({
-                imagen: selectedImage
+                    return [300, 200];
+                }
             });
 
-            // =====================================
-            // generar archivo
-            // =====================================
-
-            const blob =
-                doc.getZip().generate({
-
-                    type: "blob",
-
-                    mimeType:
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                });
-
-            saveAs(
-                blob,
-                "documento1.docx"
+        const doc =
+            new window.docxtemplater(
+                zip,
+                {
+                    modules: [imageModule]
+                }
             );
 
-            console.log(
-                "WORD generado OK"
-            );
+        doc.render({
+            imagen: selectedImage
+        });
 
-        }
-        catch(error) {
+        const blob =
+            doc.getZip().generate({
 
-            console.error(
-                "ERROR:",
-                error
-            );
+                type: "blob",
 
-            alert(
-                error.message
-            );
-        }
-    });
+                mimeType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            });
+
+        saveAs(
+            blob,
+            "documento.docx"
+        );
+
+        console.log(
+            "WORD generado OK"
+        );
+    }
+    catch(error) {
+
+        console.error(error);
+
+        alert(error.message);
+    }
+});
 
 </script>
+
+</body>
+</html>
