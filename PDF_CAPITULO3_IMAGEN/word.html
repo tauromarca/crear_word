@@ -17,16 +17,28 @@
     Generando Word...
 </h2>
 
+<!-- ===================================== -->
 <!-- PIZZIP -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js"></script>
+<!-- ===================================== -->
 
+<script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js"></script>
+
+<!-- ===================================== -->
 <!-- DOCXTEMPLATER -->
+<!-- ===================================== -->
+
 <script src="https://unpkg.com/docxtemplater@3.67.1/build/docxtemplater.js"></script>
 
+<!-- ===================================== -->
 <!-- IMAGE MODULE -->
+<!-- ===================================== -->
+
 <script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
 
+<!-- ===================================== -->
 <!-- FILE SAVER -->
+<!-- ===================================== -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script>
@@ -34,6 +46,21 @@
 (async function () {
 
     try {
+
+        console.log(
+            "PizZip:",
+            typeof PizZip
+        );
+
+        console.log(
+            "docxtemplater:",
+            typeof docxtemplater
+        );
+
+        console.log(
+            "ImageModule:",
+            typeof ImageModule
+        );
 
         // =====================================
         // LEER IMAGEN
