@@ -1,182 +1,143 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <title>Insertar Imagen Word</title>
-</head>
-
-<body>
-
-    <h2>Generar Word con Imagen</h2>
-
-    <input
-        type="file"
-        id="imageInput"
-        accept="image/*"
-    >
-
-    <button id="generateBtn">
-        Generar Word
-    </button>
-
-    <!-- ===================================== -->
-    <!-- LIBRERIAS -->
-    <!-- ===================================== -->
-
-    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Word - GitHub Edition</title>
+    
+    <!-- Librerías desde CDN (Compatibles con GitHub Pages) -->
+    <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
+    <script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <!-- ===================================== -->
-    <!-- CODIGO -->
-    <!-- ===================================== -->
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f6; text-align: center; padding-top: 50px; }
+        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 450px; margin: auto; }
+        h2 { color: #2c3e50; }
+        .step { margin: 20px 0; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #0078d4; }
+        input[type="file"] { width: 100%; }
+        button { width: 100%; background: #0078d4; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 20px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
 
-    <script>
+<div class="container">
+    <h2>Generador de Reporte</h2>
+    
+    <div class="step">
+        <strong>Paso 1:</strong> Selecciona imagen del disco duro.
+        <input type="file" id="imageInput" accept="image/*">
+    </div>
 
-        console.log(
-            "docx:",
-            typeof docx
-        );
+    <div class="step">
+        <strong>Paso 2:</strong> Procesar plantilla <code>template.docx</code>
+        <button id="generateBtn" disabled>Generar y Descargar Word</button>
+    </div>
 
-        let selectedFile = null;
+    <div id="status">Esperando selección de archivo...</div>
+</div>
 
-        // =====================================
-        // SELECCIONAR IMAGEN
-        // =====================================
+<script>
+/**
+ * MÓDULO DE IMAGEN INTEGRADO PARA GITHUB PAGES
+ * Gestiona la inserción del binario en la estructura OpenXML del Word
+ */
+function CustomImageModule(options) {
+    this.options = options || {};
+}
+CustomImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
+CustomImageModule.prototype.parse = function(type, data) {
+    if (type === "tag" && data.tag.charAt(0) === "%") {
+        return { type: "placeholder", value: data.tag.substr(1) };
+    }
+    return null;
+};
+CustomImageModule.prototype.render = function(part, options) {
+    if (part.type !== "placeholder") return null;
+    const tagValue = options.scopeManager.getValue(part.value);
+    if (!tagValue) return { value: "" };
 
-        document
-            .getElementById("imageInput")
-            .addEventListener(
-                "change",
-                function(event) {
+    const numId = Math.floor(Math.random() * 1e6);
+    const rId = "rIdImg" + numId;
+    const imgName = "image_from_disk_" + numId + ".png";
 
-                    selectedFile =
-                        event.target.files[0];
+    // 1. Inyectar imagen en la carpeta media del ZIP
+    this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
 
-                    console.log(
-                        "Imagen seleccionada:",
-                        selectedFile
-                    );
-                }
-            );
+    // 2. Registrar relación en word/_rels/document.xml.rels
+    const relsPath = "word/_rels/document.xml.rels";
+    let relsContent = this.doc.zip.file(relsPath).asText();
+    const relXml = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
+    relsContent = relsContent.replace("</Relationships>", relXml + "</Relationships>");
+    this.doc.zip.file(relsPath, relsContent);
 
-        // =====================================
-        // GENERAR WORD
-        // =====================================
+    // 3. XML DrawingML (Dimensiones 400x300 px aprox)
+    const cx = Math.round(400 * 9525); 
+    const cy = Math.round(300 * 9525);
+    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Imagen"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="Picture"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
+    
+    return { value: xml };
+};
 
-        document
-            .getElementById("generateBtn")
-            .addEventListener(
-                "click",
-                async function() {
+// --- LÓGICA DE CONTROL ---
+let imageBuffer = null;
+const status = document.getElementById("status");
+const btn = document.getElementById("generateBtn");
 
-                    try {
+// Leer imagen del disco duro del usuario
+document.getElementById("imageInput").addEventListener("change", async function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        imageBuffer = await file.arrayBuffer();
+        status.textContent = "✅ Imagen cargada. Lista para generar.";
+        btn.disabled = false;
+    }
+});
 
-                        if (!selectedFile) {
+// Generar proceso
+btn.addEventListener("click", async function() {
+    status.textContent = "⏳ Generando documento...";
+    
+    try {
+        // 1. Leer plantilla desde el servidor GitHub Pages
+        const response = await fetch("template.docx");
+        if (!response.ok) throw new Error("No se encontró template.docx en el repositorio.");
+        const templateArrayBuffer = await response.arrayBuffer();
 
-                            alert(
-                                "Seleccione imagen"
-                            );
+        // 2. Cargar en PizZip
+        const zip = new window.PizZip(templateArrayBuffer);
 
-                            return;
-                        }
+        // 3. Inicializar Docxtemplater con nuestro módulo de imagen
+        const doc = new window.docxtemplater(zip, {
+            delimiters: { start: "{", end: "}" },
+            modules: [new CustomImageModule()]
+        });
 
-                        // ==========================
-                        // LEER IMAGEN
-                        // ==========================
+        // 4. Pasar la imagen al tag {%imagen}
+        doc.setData({
+            imagen: new Uint8Array(imageBuffer)
+        });
 
-                        const imageBuffer =
-                            await selectedFile.arrayBuffer();
+        // 5. Renderizar
+        doc.render();
 
-                        // ==========================
-                        // CREAR DOCUMENTO
-                        // ==========================
+        // 6. Descargar el resultado
+        const out = doc.getZip().generate({
+            type: "blob",
+            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        });
 
-                        const doc =
-                            new docx.Document({
+        window.saveAs(out, "Resultado_GitHub_Pages.docx");
+        status.textContent = "🚀 ¡Generado con éxito!";
 
-                                sections: [
-
-                                    {
-
-                                        properties: {},
-
-                                        children: [
-
-                                            new docx.Paragraph({
-
-                                                children: [
-
-                                                    new docx.TextRun({
-
-                                                        text:
-                                                            "Imagen insertada en Word",
-
-                                                        break: 2
-                                                    })
-                                                ]
-                                            }),
-
-                                            new docx.Paragraph({
-
-                                                children: [
-
-                                                    new docx.ImageRun({
-
-                                                        data:
-                                                            imageBuffer,
-
-                                                        transformation: {
-
-                                                            width: 400,
-
-                                                            height: 300
-                                                        }
-                                                    })
-                                                ]
-                                            })
-                                        ]
-                                    }
-                                ]
-                            });
-
-                        // ==========================
-                        // GENERAR ARCHIVO
-                        // ==========================
-
-                        const blob =
-                            await docx.Packer.toBlob(doc);
-
-                        // ==========================
-                        // DESCARGAR
-                        // ==========================
-
-                        saveAs(
-                            blob,
-                            "documento.docx"
-                        );
-
-                        console.log(
-                            "WORD generado OK"
-                        );
-                    }
-                    catch(error) {
-
-                        console.error(
-                            "ERROR:",
-                            error
-                        );
-
-                        alert(
-                            error.message
-                        );
-                    }
-                }
-            );
-
-    </script>
+    } catch (error) {
+        console.error(error);
+        status.textContent = "❌ Error: " + error.message;
+    }
+});
+</script>
 
 </body>
-
 </html>
