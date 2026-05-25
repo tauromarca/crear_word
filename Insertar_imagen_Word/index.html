@@ -2,135 +2,117 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Word - GitHub Edition</title>
-    
-    <!-- Librerías desde CDN (Compatibles con GitHub Pages) -->
+    <title>Generador Word - Solución Undefined</title>
     <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
     <script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f6; text-align: center; padding-top: 50px; }
-        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 450px; margin: auto; }
-        h2 { color: #2c3e50; }
-        .step { margin: 20px 0; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #0078d4; }
-        input[type="file"] { width: 100%; }
-        button { width: 100%; background: #0078d4; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        body { font-family: sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 400px; margin: auto; }
+        #status { margin-top: 20px; font-weight: bold; color: #0078d4; }
+        button { width: 100%; background: #27ae60; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         button:disabled { background: #ccc; }
-        #status { margin-top: 20px; font-weight: bold; color: #555; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>Generador de Reporte</h2>
-    
-    <div class="step">
-        <strong>Paso 1:</strong> Selecciona imagen del disco duro.
-        <input type="file" id="imageInput" accept="image/*">
-    </div>
-
-    <div class="step">
-        <strong>Paso 2:</strong> Procesar plantilla <code>template.docx</code>
-        <button id="generateBtn" disabled>Generar y Descargar Word</button>
-    </div>
-
-    <div id="status">Esperando selección de archivo...</div>
+    <p>Seleccione imagen (.jpg o .png):</p>
+    <input type="file" id="imageInput" accept="image/*">
+    <button id="generateBtn" disabled>Generar Word</button>
+    <div id="status">Esperando imagen...</div>
 </div>
 
 <script>
-/**
- * MÓDULO DE IMAGEN INTEGRADO PARA GITHUB PAGES
- * Gestiona la inserción del binario en la estructura OpenXML del Word
- */
-function CustomImageModule(options) {
-    this.options = options || {};
-}
-CustomImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
-CustomImageModule.prototype.parse = function(type, data) {
+// ============================================================
+// MÓDULO DE IMAGEN MEJORADO (Elimina el error 'undefined')
+// ============================================================
+function MyImageModule() {}
+MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
+MyImageModule.prototype.parse = function(type, data) {
+    // Si el tag empieza con %, lo marcamos como imagen
     if (type === "tag" && data.tag.charAt(0) === "%") {
         return { type: "placeholder", value: data.tag.substr(1) };
     }
     return null;
 };
-CustomImageModule.prototype.render = function(part, options) {
+MyImageModule.prototype.render = function(part, options) {
     if (part.type !== "placeholder") return null;
     const tagValue = options.scopeManager.getValue(part.value);
+    
+    // Si no hay valor, devolvemos vacío para que no escriba 'undefined'
     if (!tagValue) return { value: "" };
 
     const numId = Math.floor(Math.random() * 1e6);
     const rId = "rIdImg" + numId;
-    const imgName = "image_from_disk_" + numId + ".png";
+    const imgName = "img_" + numId + ".png";
 
-    // 1. Inyectar imagen en la carpeta media del ZIP
+    // 1. Inyectar imagen en el ZIP
     this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
 
-    // 2. Registrar relación en word/_rels/document.xml.rels
+    // 2. Registrar la relación en el XML interno de Word
     const relsPath = "word/_rels/document.xml.rels";
-    let relsContent = this.doc.zip.file(relsPath).asText();
+    let rels = this.doc.zip.file(relsPath).asText();
     const relXml = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
-    relsContent = relsContent.replace("</Relationships>", relXml + "</Relationships>");
-    this.doc.zip.file(relsPath, relsContent);
+    rels = rels.replace("</Relationships>", relXml + "</Relationships>");
+    this.doc.zip.file(relsPath, rels);
 
-    // 3. XML DrawingML (Dimensiones 400x300 px aprox)
-    const cx = Math.round(400 * 9525); 
-    const cy = Math.round(300 * 9525);
-    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Imagen"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="Picture"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
+    // 3. XML para dibujar la imagen (Tamaño 450x350 px aprox)
+    const cx = Math.round(450 * 9525); 
+    const cy = Math.round(350 * 9525);
+    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
     
     return { value: xml };
 };
 
-// --- LÓGICA DE CONTROL ---
-let imageBuffer = null;
+// =====================================
+// LÓGICA DE CONTROL
+// =====================================
+let imageArrayBuffer = null;
 const status = document.getElementById("status");
 const btn = document.getElementById("generateBtn");
 
-// Leer imagen del disco duro del usuario
 document.getElementById("imageInput").addEventListener("change", async function(e) {
     const file = e.target.files[0];
     if (file) {
-        imageBuffer = await file.arrayBuffer();
-        status.textContent = "✅ Imagen cargada. Lista para generar.";
+        imageArrayBuffer = await file.arrayBuffer();
+        status.textContent = "✅ Imagen cargada.";
         btn.disabled = false;
     }
 });
 
-// Generar proceso
 btn.addEventListener("click", async function() {
-    status.textContent = "⏳ Generando documento...";
-    
+    status.textContent = "⏳ Generando...";
     try {
-        // 1. Leer plantilla desde el servidor GitHub Pages
+        // 1. Leer plantilla
         const response = await fetch("template.docx");
         if (!response.ok) throw new Error("No se encontró template.docx en el repositorio.");
-        const templateArrayBuffer = await response.arrayBuffer();
+        const content = await response.arrayBuffer();
 
-        // 2. Cargar en PizZip
-        const zip = new window.PizZip(templateArrayBuffer);
+        // 2. Cargar ZIP
+        const zip = new window.PizZip(content);
 
-        // 3. Inicializar Docxtemplater con nuestro módulo de imagen
+        // 3. Instanciar Docxtemplater
         const doc = new window.docxtemplater(zip, {
             delimiters: { start: "{", end: "}" },
-            modules: [new CustomImageModule()]
+            modules: [new MyImageModule()],
+            // Esto evita que aparezca la palabra 'undefined' si algo falla
+            nullGetter: function() { return ""; }
         });
 
-        // 4. Pasar la imagen al tag {%imagen}
+        // 4. Pasar los datos
         doc.setData({
-            imagen: new Uint8Array(imageBuffer)
+            imagen: new Uint8Array(imageArrayBuffer)
         });
 
         // 5. Renderizar
         doc.render();
 
-        // 6. Descargar el resultado
-        const out = doc.getZip().generate({
-            type: "blob",
-            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        });
-
-        window.saveAs(out, "Resultado_GitHub_Pages.docx");
-        status.textContent = "🚀 ¡Generado con éxito!";
+        // 6. Descargar
+        const out = doc.getZip().generate({ type: "blob" });
+        window.saveAs(out, "Reporte_Final.docx");
+        status.textContent = "🚀 ¡Éxito!";
 
     } catch (error) {
         console.error(error);
@@ -138,6 +120,5 @@ btn.addEventListener("click", async function() {
     }
 });
 </script>
-
 </body>
 </html>
