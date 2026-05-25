@@ -2,81 +2,69 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Generador Word Institucional - v5</title>
+    <title>Generador Word Institucional - v6</title>
     
-    <!-- LIBRERÍAS EN VERSIONES COMPATIBLES -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.49.1/docxtemplater.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- LIBRERÍAS (Fuentes JSDelivr - Máxima compatibilidad UMD) -->
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.49.1/build/docxtemplater.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
         .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; margin: auto; }
         #status { margin-top: 20px; font-weight: bold; color: #007bff; min-height: 1.5em; }
-        input[type="file"] { margin: 20px 0; width: 100%; }
-        button { background: #0078d4; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1em; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 15px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Generador de Reporte</h2>
-    <p style="color: #666; font-size: 0.9em;">Insertar imagen del disco en <code>template.docx</code></p>
+    <h2>Generador de Ficha</h2>
+    <p style="color: #666; font-size: 0.9em;">Cargar imagen local e insertar en <code>template.docx</code></p>
     
     <input type="file" id="imageInput" accept="image/*">
-    <button id="generateBtn" disabled>Generar Documento Word</button>
+    <button id="generateBtn" style="width:100%; padding:12px; background:#0078d4; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-top:10px;" disabled>
+        Generar Documento Word
+    </button>
     
-    <div id="status">Seleccione una imagen del disco...</div>
+    <div id="loader" class="loader"></div>
+    <div id="status">Verificando librerías...</div>
 </div>
 
 <script>
-/**
- * MÓDULO DE IMAGEN INTEGRADO (OpenXML Standard)
- * Este bloque gestiona la creación de la imagen dentro del ZIP del Word
- */
-function MyImageModule() {}
-MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
-MyImageModule.prototype.parse = function(type, data) {
-    if (type === "tag" && data.tag.charAt(0) === "%") {
-        return { type: "placeholder", value: data.tag.substr(1) };
-    }
+// ============================================================
+// MÓDULO DE IMAGEN (Estándar Word OpenXML)
+// ============================================================
+function CustomImageModule() {}
+CustomImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
+CustomImageModule.prototype.parse = function(type, data) {
+    if (type === "tag" && data.tag.charAt(0) === "%") return { type: "placeholder", value: data.tag.substr(1) };
     return null;
 };
-MyImageModule.prototype.render = function(part, options) {
+CustomImageModule.prototype.render = function(part, options) {
     if (part.type !== "placeholder") return null;
     const tagValue = options.scopeManager.getValue(part.value);
     if (!tagValue) return { value: "" };
 
-    const numId = Math.floor(Math.random() * 1000000);
-    const rId = "rIdImg" + numId;
-    const imgName = "image_" + numId + ".png";
+    const rId = "rId" + Math.floor(Math.random() * 1e6);
+    const imgName = rId + ".png";
 
-    // 1. Inyectar el archivo binario en la carpeta media del Word
     this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
 
-    // 2. Registrar la relación en word/_rels/document.xml.rels
-    const relsPath = "word/_rels/document.xml.rels";
-    let relsContent = this.doc.zip.file(relsPath).asText();
-    const newRel = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
-    relsContent = relsContent.replace("</Relationships>", newRel + "</Relationships>");
-    this.doc.zip.file(relsPath, relsContent);
+    let rels = this.doc.zip.file("word/_rels/document.xml.rels").asText();
+    rels = rels.replace("</Relationships>", `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/></Relationships>`);
+    this.doc.zip.file("word/_rels/document.xml.rels", rels);
 
-    // 3. Registrar el tipo de contenido en [Content_Types].xml
-    const ctPath = "[Content_Types].xml";
-    let ctContent = this.doc.zip.file(ctPath).asText();
-    if (ctContent.indexOf('Extension="png"') === -1) {
-        ctContent = ctContent.replace("</Types>", '<Default Extension="png" ContentType="image/png"/></Types>');
-        this.doc.zip.file(ctPath, ctContent);
+    const ct = "[Content_Types].xml";
+    let content = this.doc.zip.file(ct).asText();
+    if (content.indexOf('Extension="png"') === -1) {
+        content = content.replace("</Types>", '<Default Extension="png" ContentType="image/png"/></Types>');
+        this.doc.zip.file(ct, content);
     }
 
-    // Dimensiones en EMUs (English Metric Units)
-    const cx = Math.round(450 * 9525); 
-    const cy = Math.round(350 * 9525);
-    
-    // 4. XML exacto para dibujar la imagen (Namespaces incluidos)
-    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="Pic"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
-    
+    const cx = Math.round(450 * 9525), cy = Math.round(350 * 9525);
+    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="1" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="P"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
     return { value: xml };
 };
 
@@ -87,59 +75,66 @@ let imageUint8 = null;
 const status = document.getElementById("status");
 const btn = document.getElementById("generateBtn");
 
-// Leer imagen del disco duro
+// 1. Verificar si las librerías cargaron al iniciar
+window.onload = () => {
+    const pz = window.PizZip || (window.pizzip ? window.pizzip.default : null);
+    if (pz) {
+        status.textContent = "✅ Sistema listo.";
+    } else {
+        status.textContent = "❌ Error: Librerías no detectadas.";
+    }
+};
+
+// 2. Leer imagen del disco
 document.getElementById("imageInput").addEventListener("change", function(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(event) {
         imageUint8 = new Uint8Array(event.target.result);
-        status.textContent = "✅ Imagen cargada.";
+        status.textContent = "✅ Imagen cargada del disco.";
         btn.disabled = false;
     };
     reader.readAsArrayBuffer(file);
 });
 
-// Proceso de generación
+// 3. Generación
 btn.addEventListener("click", async function() {
-    status.textContent = "⏳ Generando documento...";
+    status.textContent = "⏳ Generando Word...";
+    document.getElementById("loader").style.display = "block";
+
     try {
-        // Leer plantilla del servidor GitHub
         const response = await fetch("template.docx");
-        if (!response.ok) throw new Error("No se encontró template.docx en el repo.");
-        const templateBuffer = await response.arrayBuffer();
+        if (!response.ok) throw new Error("No se pudo leer template.docx");
+        const content = await response.arrayBuffer();
 
-        // INSTANCIAR PIZZIP (Con verificación de objeto global)
-        const PizZip = window.PizZip;
-        if (!PizZip) throw new Error("Librería PizZip no cargada.");
-        
-        const zip = new PizZip(templateBuffer);
+        // --- DETECCIÓN DINÁMICA DE PIZZIP ---
+        const PizZipConstructor = window.PizZip || window.pizzip;
+        if (!PizZipConstructor) throw new Error("Librería PizZip no disponible.");
 
-        // INSTANCIAR DOCXTEMPLATER
+        const zip = new PizZipConstructor(content);
+
         const doc = new window.docxtemplater(zip, {
             delimiters: { start: "[[", end: "]]" },
-            modules: [new MyImageModule()],
+            modules: [new CustomImageModule()],
             nullGetter: () => ""
         });
 
-        // Pasar datos: El tag [[%imagen]] usará el valor 'imagen'
         doc.setData({ imagen: imageUint8 });
-
-        // Renderizar
         doc.render();
 
-        // Descargar resultado
         const out = doc.getZip().generate({
             type: "blob",
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         });
 
-        window.saveAs(out, "Resultado_Final_v5.docx");
-        status.textContent = "🚀 ¡Éxito al generar!";
-
+        saveAs(out, "Ficha_Con_Imagen.docx");
+        status.textContent = "✅ ¡Éxito!";
     } catch (error) {
-        console.error("Detalle:", error);
+        console.error(error);
         status.textContent = "❌ Error: " + error.message;
+    } finally {
+        document.getElementById("loader").style.display = "none";
     }
 });
 </script>
