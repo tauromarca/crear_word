@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Generador Word Institucional - Final Fix</title>
+    <title>Generador Word Institucional - Final Solution</title>
     <!-- LIBRERÍAS -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.49.1/build/docxtemplater.js"></script>
@@ -11,8 +11,8 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
         .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; margin: auto; }
-        #status { margin-top: 20px; font-weight: bold; color: #0078d4; min-height: 1.5em; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 15px auto; }
+        #status { margin-top: 20px; font-weight: bold; color: #007bff; min-height: 1.5em; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: 15px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -33,13 +33,13 @@
 
 <script>
 // ============================================================
-// MÓDULO DE IMAGEN (v4 Compatible - Inyección Forzada)
+// MÓDULO DE IMAGEN (v4 - INYECCIÓN CERTIFICADA)
 // ============================================================
 function MyImageModule(options) {
     this.options = options || {};
 }
 MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
-    this.docxtemplater = docxtemplater; // Guardamos la referencia al motor
+    this.docxtemplater = docxtemplater; 
     return options;
 };
 MyImageModule.prototype.parse = function(type, data) {
@@ -51,27 +51,26 @@ MyImageModule.prototype.parse = function(type, data) {
 MyImageModule.prototype.render = function(part, options) {
     if (part.type !== "placeholder") return null;
     const tagValue = options.scopeManager.getValue(part.value);
+    
+    // Si no hay imagen seleccionada, limpiar el tag
     if (!tagValue) return { value: "" };
 
-    // 1. Identificadores únicos para esta imagen
-    const numId = Math.floor(Math.random() * 1000000);
-    const rId = "rIdImg" + numId;
-    const imgName = "image_dynamic_" + numId + ".png";
-
-    // 2. Acceder al ZIP a través de la referencia guardada
+    // 1. Configuración de nombres
+    const rId = "rId999" + Math.floor(Math.random() * 1000); // ID muy alto para no chocar
+    const imgName = "img_custom_" + rId + ".png";
     const zip = this.docxtemplater.zip;
 
-    // 3. Inyectar el archivo binario en el ZIP
+    // 2. Inyectar el archivo binario en el ZIP
     zip.file("word/media/" + imgName, tagValue, { binary: true });
 
-    // 4. Actualizar Relaciones (.rels)
+    // 3. Registrar la relación en word/_rels/document.xml.rels
     const relsPath = "word/_rels/document.xml.rels";
     let relsContent = zip.file(relsPath).asText();
     const relXml = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
     relsContent = relsContent.replace("</Relationships>", relXml + "</Relationships>");
     zip.file(relsPath, relsContent);
 
-    // 5. Asegurar el Content Type
+    // 4. Asegurar el Content Type en [Content_Types].xml
     const ctPath = "[Content_Types].xml";
     let ctContent = zip.file(ctPath).asText();
     if (ctContent.indexOf('Extension="png"') === -1) {
@@ -79,11 +78,38 @@ MyImageModule.prototype.render = function(part, options) {
         zip.file(ctPath, ctContent);
     }
 
-    // 6. XML DrawingML (Tamaño fijo 400x300 para asegurar visibilidad)
-    const cx = Math.round(400 * 9525); 
-    const cy = Math.round(300 * 9525);
+    // 5. XML DrawingML con Namespaces explícitos (Tamaño 450x330)
+    const cx = Math.round(450 * 9525); 
+    const cy = Math.round(330 * 9525);
     
-    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="P"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
+    const xml = `
+<w:run>
+    <w:drawing>
+        <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="${cx}" cy="${cy}"/>
+            <wp:docPr id="100" name="ImagenDinamica"/>
+            <wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:nvPicPr>
+                            <pic:cNvPr id="0" name="Picture"/>
+                            <pic:cNvPicPr/>
+                        </pic:nvPicPr>
+                        <pic:blipFill>
+                            <a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+                            <a:stretch><a:fillRect/></a:stretch>
+                        </pic:blipFill>
+                        <pic:spPr>
+                            <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                        </pic:spPr>
+                    </pic:pic>
+                </a:graphicData>
+            </a:graphic>
+        </wp:inline>
+    </w:drawing>
+</w:run>`;
     
     return { value: xml };
 };
@@ -123,7 +149,6 @@ btn.addEventListener("click", async function() {
         const PizZip = window.PizZip || window.pizzip;
         const zip = new PizZip(content);
 
-        // INSTANCIAR DOCXTEMPLATER
         const doc = new window.docxtemplater(zip, {
             delimiters: { start: "[[", end: "]]" },
             modules: [new MyImageModule()],
@@ -140,8 +165,8 @@ btn.addEventListener("click", async function() {
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         });
 
-        window.saveAs(out, "Reporte_Final_Corregido.docx");
-        status.textContent = "🚀 ¡Éxito al generar!";
+        window.saveAs(out, "Ficha_Final_Exitosa.docx");
+        status.textContent = "🚀 ¡Documento generado con éxito!";
 
     } catch (error) {
         console.error("Detalle técnico:", error);
