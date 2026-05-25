@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Generador Word Institucional - Final</title>
-    <!-- LIBRERÍAS (Versiones estables) -->
+    <title>Generador Word Institucional - Final Fix</title>
+    <!-- LIBRERÍAS -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.49.1/build/docxtemplater.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
@@ -11,7 +11,7 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
         .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; margin: auto; }
-        #status { margin-top: 20px; font-weight: bold; color: #007bff; min-height: 1.5em; }
+        #status { margin-top: 20px; font-weight: bold; color: #0078d4; min-height: 1.5em; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 15px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -33,81 +33,57 @@
 
 <script>
 // ============================================================
-// MÓDULO DE IMAGEN (Estándar Word OpenXML Indestructible)
+// MÓDULO DE IMAGEN (v4 Compatible - Inyección Forzada)
 // ============================================================
-function CustomImageModule() {}
-CustomImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
-    this.docxtemplater = docxtemplater;
+function MyImageModule(options) {
+    this.options = options || {};
+}
+MyImageModule.prototype.optionsTransformer = function(options, docxtemplater) {
+    this.docxtemplater = docxtemplater; // Guardamos la referencia al motor
     return options;
 };
-CustomImageModule.prototype.parse = function(type, data) {
-    if (type === "tag" && data.tag.charAt(0) === "%") return { type: "placeholder", value: data.tag.substr(1) };
+MyImageModule.prototype.parse = function(type, data) {
+    if (type === "tag" && data.tag.charAt(0) === "%") {
+        return { type: "placeholder", value: data.tag.substr(1) };
+    }
     return null;
 };
-CustomImageModule.prototype.render = function(part, options) {
+MyImageModule.prototype.render = function(part, options) {
     if (part.type !== "placeholder") return null;
     const tagValue = options.scopeManager.getValue(part.value);
     if (!tagValue) return { value: "" };
 
-    const numId = Math.floor(Math.random() * 100000);
+    // 1. Identificadores únicos para esta imagen
+    const numId = Math.floor(Math.random() * 1000000);
     const rId = "rIdImg" + numId;
-    const imgName = "image_arcgis_" + numId + ".png";
+    const imgName = "image_dynamic_" + numId + ".png";
 
-    // 1. Inyectar imagen en el ZIP
-    this.docxtemplater.zip.file("word/media/" + imgName, tagValue, { binary: true });
+    // 2. Acceder al ZIP a través de la referencia guardada
+    const zip = this.docxtemplater.zip;
 
-    // 2. Actualizar Relaciones
+    // 3. Inyectar el archivo binario en el ZIP
+    zip.file("word/media/" + imgName, tagValue, { binary: true });
+
+    // 4. Actualizar Relaciones (.rels)
     const relsPath = "word/_rels/document.xml.rels";
-    let relsContent = this.docxtemplater.zip.file(relsPath).asText();
+    let relsContent = zip.file(relsPath).asText();
     const relXml = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
     relsContent = relsContent.replace("</Relationships>", relXml + "</Relationships>");
-    this.docxtemplater.zip.file(relsPath, relsContent);
+    zip.file(relsPath, relsContent);
 
-    // 3. Actualizar Content Types
+    // 5. Asegurar el Content Type
     const ctPath = "[Content_Types].xml";
-    let ctContent = this.docxtemplater.zip.file(ctPath).asText();
+    let ctContent = zip.file(ctPath).asText();
     if (ctContent.indexOf('Extension="png"') === -1) {
         ctContent = ctContent.replace("</Types>", '<Default Extension="png" ContentType="image/png"/></Types>');
-        this.docxtemplater.zip.file(ctPath, ctContent);
+        zip.file(ctPath, ctContent);
     }
 
-    // 4. XML DE DIBUJO (DrawingML) - Formato nativo de Word
-    const width = 480; 
-    const height = 320;
-    const cx = Math.round(width * 9525); 
-    const cy = Math.round(height * 9525);
+    // 6. XML DrawingML (Tamaño fijo 400x300 para asegurar visibilidad)
+    const cx = Math.round(400 * 9525); 
+    const cy = Math.round(300 * 9525);
     
-    // Este bloque de XML incluye los Namespaces necesarios para que Word no lo ignore
-    const xml = `
-<w:run>
-    <w:drawing>
-        <wp:inline distT="0" distB="0" distL="0" distR="0">
-            <wp:extent cx="${cx}" cy="${cy}"/>
-            <wp:docPr id="${numId}" name="Imagen ${numId}"/>
-            <wp:cNvGraphicFramePr>
-                <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
-            </wp:cNvGraphicFramePr>
-            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                        <pic:nvPicPr>
-                            <pic:cNvPr id="${numId}" name="Picture ${numId}"/>
-                            <pic:cNvPicPr/>
-                        </pic:nvPicPr>
-                        <pic:blipFill>
-                            <a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-                            <a:stretch><a:fillRect/></a:stretch>
-                        </pic:blipFill>
-                        <pic:spPr>
-                            <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
-                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-                        </pic:spPr>
-                    </pic:pic>
-                </a:graphicData>
-            </a:graphic>
-        </wp:inline>
-    </w:drawing>
-</w:run>`;
+    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="P"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
     
     return { value: xml };
 };
@@ -129,7 +105,7 @@ document.getElementById("imageInput").addEventListener("change", function(e) {
     const reader = new FileReader();
     reader.onload = function(event) {
         imageUint8 = new Uint8Array(event.target.result);
-        status.textContent = "✅ Imagen cargada.";
+        status.textContent = "✅ Imagen cargada del disco.";
         btn.disabled = false;
     };
     reader.readAsArrayBuffer(file);
@@ -141,19 +117,22 @@ btn.addEventListener("click", async function() {
 
     try {
         const response = await fetch("template.docx");
-        if (!response.ok) throw new Error("No se pudo cargar template.docx");
+        if (!response.ok) throw new Error("No se pudo leer template.docx");
         const content = await response.arrayBuffer();
 
         const PizZip = window.PizZip || window.pizzip;
         const zip = new PizZip(content);
 
+        // INSTANCIAR DOCXTEMPLATER
         const doc = new window.docxtemplater(zip, {
             delimiters: { start: "[[", end: "]]" },
-            modules: [new CustomImageModule()],
+            modules: [new MyImageModule()],
             nullGetter: () => ""
         });
 
+        // Pasar la imagen a la variable [[%imagen]]
         doc.setData({ imagen: imageUint8 });
+
         doc.render();
 
         const out = doc.getZip().generate({
@@ -161,10 +140,11 @@ btn.addEventListener("click", async function() {
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         });
 
-        saveAs(out, "Ficha_Final.docx");
-        status.textContent = "✅ ¡Éxito al generar!";
+        window.saveAs(out, "Reporte_Final_Corregido.docx");
+        status.textContent = "🚀 ¡Éxito al generar!";
+
     } catch (error) {
-        console.error(error);
+        console.error("Detalle técnico:", error);
         status.textContent = "❌ Error: " + error.message;
     } finally {
         document.getElementById("loader").style.display = "none";
