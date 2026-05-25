@@ -2,36 +2,38 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Generador Word - Solución Undefined</title>
+    <title>Generador Word Institucional</title>
     <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
     <script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 400px; margin: auto; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; text-align: center; padding-top: 50px; }
+        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 450px; margin: auto; }
         #status { margin-top: 20px; font-weight: bold; color: #0078d4; }
-        button { width: 100%; background: #27ae60; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        input[type="file"] { margin: 20px 0; width: 100%; }
+        button { background: #27ae60; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
         button:disabled { background: #ccc; }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
     <h2>Generador de Reporte</h2>
-    <p>Seleccione imagen (.jpg o .png):</p>
+    <p style="color: #666;">Carga una imagen y genera el Word</p>
+    
     <input type="file" id="imageInput" accept="image/*">
-    <button id="generateBtn" disabled>Generar Word</button>
-    <div id="status">Esperando imagen...</div>
+    <button id="generateBtn" disabled>Generar Documento .docx</button>
+    
+    <div id="status">Esperando imagen del disco...</div>
 </div>
 
 <script>
 // ============================================================
-// MÓDULO DE IMAGEN MEJORADO (Elimina el error 'undefined')
+// MÓDULO DE IMAGEN ULTRA-ROBUSTO
 // ============================================================
 function MyImageModule() {}
 MyImageModule.prototype.optionsTransformer = function(options, doc) { this.doc = doc; return options; };
 MyImageModule.prototype.parse = function(type, data) {
-    // Si el tag empieza con %, lo marcamos como imagen
     if (type === "tag" && data.tag.charAt(0) === "%") {
         return { type: "placeholder", value: data.tag.substr(1) };
     }
@@ -40,28 +42,57 @@ MyImageModule.prototype.parse = function(type, data) {
 MyImageModule.prototype.render = function(part, options) {
     if (part.type !== "placeholder") return null;
     const tagValue = options.scopeManager.getValue(part.value);
-    
-    // Si no hay valor, devolvemos vacío para que no escriba 'undefined'
     if (!tagValue) return { value: "" };
 
-    const numId = Math.floor(Math.random() * 1e6);
+    // 1. Configuración de IDs y nombres
+    const numId = Math.floor(Math.random() * 1000000);
     const rId = "rIdImg" + numId;
-    const imgName = "img_" + numId + ".png";
+    const imgName = "img_arcgis_" + numId + ".png";
+    const size = [450, 300]; // Tamaño por defecto: 450px x 300px
 
-    // 1. Inyectar imagen en el ZIP
+    // 2. Inyectar el archivo binario en el ZIP
     this.doc.zip.file("word/media/" + imgName, tagValue, { binary: true });
 
-    // 2. Registrar la relación en el XML interno de Word
-    const relsPath = "word/_rels/document.xml.rels";
-    let rels = this.doc.zip.file(relsPath).asText();
-    const relXml = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
-    rels = rels.replace("</Relationships>", relXml + "</Relationships>");
-    this.doc.zip.file(relsPath, rels);
+    // 3. ACTUALIZAR CONTENT_TYPES (Permiso maestro de Word)
+    const ctPath = "[Content_Types].xml";
+    let ctContent = this.doc.zip.file(ctPath).asText();
+    if (ctContent.indexOf('Extension="png"') === -1) {
+        ctContent = ctContent.replace("</Types>", '<Default Extension="png" ContentType="image/png"/></Types>');
+        this.doc.zip.file(ctPath, ctContent);
+    }
 
-    // 3. XML para dibujar la imagen (Tamaño 450x350 px aprox)
-    const cx = Math.round(450 * 9525); 
-    const cy = Math.round(350 * 9525);
-    const xml = `<w:run><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${numId}" name="Img"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:run>`;
+    // 4. ACTUALIZAR RELACIONES (Vínculo interno)
+    const relsPath = "word/_rels/document.xml.rels";
+    let relsContent = this.doc.zip.file(relsPath).asText();
+    const newRel = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`;
+    relsContent = relsContent.replace("</Relationships>", newRel + "</Relationships>");
+    this.doc.zip.file(relsPath, relsContent);
+
+    // 5. XML DrawingML con Namespaces Correctos
+    const cx = Math.round(size[0] * 9525); 
+    const cy = Math.round(size[1] * 9525);
+    const xml = `
+<w:run>
+    <w:drawing>
+        <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="${cx}" cy="${cy}"/>
+            <wp:docPr id="${numId}" name="Img${numId}"/>
+            <wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:nvPicPr><pic:cNvPr id="${numId}" name="Pic${numId}"/><pic:cNvPicPr/></pic:nvPicPr>
+                        <pic:blipFill>
+                            <a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+                            <a:stretch><a:fillRect/></a:stretch>
+                        </pic:blipFill>
+                        <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+                    </pic:pic>
+                </a:graphicData>
+            </a:graphic>
+        </wp:inline>
+    </w:drawing>
+</w:run>`;
     
     return { value: xml };
 };
@@ -69,50 +100,43 @@ MyImageModule.prototype.render = function(part, options) {
 // =====================================
 // LÓGICA DE CONTROL
 // =====================================
-let imageArrayBuffer = null;
+let binaryImage = null;
 const status = document.getElementById("status");
 const btn = document.getElementById("generateBtn");
 
 document.getElementById("imageInput").addEventListener("change", async function(e) {
     const file = e.target.files[0];
     if (file) {
-        imageArrayBuffer = await file.arrayBuffer();
-        status.textContent = "✅ Imagen cargada.";
+        const buffer = await file.arrayBuffer();
+        binaryImage = new Uint8Array(buffer);
+        status.textContent = "✅ Imagen cargada correctamente.";
         btn.disabled = false;
     }
 });
 
 btn.addEventListener("click", async function() {
-    status.textContent = "⏳ Generando...";
+    status.textContent = "⏳ Generando documento...";
     try {
-        // 1. Leer plantilla
         const response = await fetch("template.docx");
-        if (!response.ok) throw new Error("No se encontró template.docx en el repositorio.");
+        if (!response.ok) throw new Error("No se pudo cargar template.docx");
         const content = await response.arrayBuffer();
 
-        // 2. Cargar ZIP
         const zip = new window.PizZip(content);
-
-        // 3. Instanciar Docxtemplater
         const doc = new window.docxtemplater(zip, {
-            delimiters: { start: "{", end: "}" },
+            delimiters: { start: "[[", end: "]]" }, // Usamos [[ ]] para ser consistentes
             modules: [new MyImageModule()],
-            // Esto evita que aparezca la palabra 'undefined' si algo falla
-            nullGetter: function() { return ""; }
+            nullGetter: () => ""
         });
 
-        // 4. Pasar los datos
         doc.setData({
-            imagen: new Uint8Array(imageArrayBuffer)
+            imagen: binaryImage
         });
 
-        // 5. Renderizar
         doc.render();
 
-        // 6. Descargar
         const out = doc.getZip().generate({ type: "blob" });
         window.saveAs(out, "Reporte_Final.docx");
-        status.textContent = "🚀 ¡Éxito!";
+        status.textContent = "🚀 ¡Documento generado con éxito!";
 
     } catch (error) {
         console.error(error);
