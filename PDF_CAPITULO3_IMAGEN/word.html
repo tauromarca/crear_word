@@ -21,7 +21,8 @@
 <!-- EASY TEMPLATE X -->
 <!-- ===================================== -->
 
-<script src="https://unpkg.com/easy-template-x/dist/browser/easy-template-x.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/easy-template-x@4.1.2/dist/browser/easy-template-x.min.js"></script>
 
 <!-- ===================================== -->
 <!-- FILE SAVER -->
@@ -37,9 +38,13 @@
 
         console.log(
             "easyTemplateX:",
-            typeof easyTemplateX
+            window.easyTemplateX
         );
-
+        
+        console.log(
+            "EasyTemplateX:",
+            window.EasyTemplateX
+        );
         // =====================================
         // LEER IMAGEN DESDE LOCALSTORAGE
         // =====================================
@@ -129,13 +134,12 @@
         // =====================================
 
         const resultado =
-            await easyTemplateX.process(
-
+            await window.EasyTemplateX.process(
+        
                 templateBuffer,
-
+        
                 datos
             );
-
         console.log(
             "Documento procesado"
         );
