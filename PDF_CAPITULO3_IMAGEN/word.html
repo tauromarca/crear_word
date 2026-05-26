@@ -67,7 +67,45 @@ import {
             "Datos ArcGIS:",
             datosArcGIS
         );
-
+        const imagenesAdjuntas =
+            JSON.parse(
+        
+                localStorage.getItem(
+                    "imagenesAdjuntas"
+                )
+            ) || [];
+        const imagenesWord = [];
+        
+        for (const img of imagenesAdjuntas) {
+        
+            const response =
+                await fetch(
+                    img.dataUrl
+                );
+        
+            const blob =
+                await response.blob();
+        
+            imagenesWord.push({
+        
+                _type:
+                    "image",
+        
+                source:
+                    blob,
+        
+                format:
+                    img.dataUrl.includes("png")
+                    ? "image/png"
+                    : "image/jpeg",
+        
+                width:
+                    250,
+        
+                height:
+                    180
+            });
+        }
         // =====================================
         // LEER IMAGEN
         // =====================================
@@ -130,7 +168,6 @@ import {
         // =====================================
         // DATOS TEMPLATE
         // =====================================
-
         const datos = {
 
             copropiedad_formalizada:
@@ -167,6 +204,9 @@ import {
                 height:
                     180
             }
+            imagenes_adjuntas:
+                imagenesWord
+
         };
 
         console.log(
