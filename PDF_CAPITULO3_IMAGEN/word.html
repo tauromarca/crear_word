@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
 
     <title>
-        Generar Word
+        Generar Word Template
     </title>
 
 </head>
@@ -14,14 +14,14 @@
 <body>
 
 <h2>
-    Generando Word...
+    Generando documento...
 </h2>
 
 <!-- ===================================== -->
-<!-- DOCX.JS -->
+<!-- EASY TEMPLATE X -->
 <!-- ===================================== -->
 
-<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://unpkg.com/easy-template-x/dist/browser/easy-template-x.js"></script>
 
 <!-- ===================================== -->
 <!-- FILE SAVER -->
@@ -36,8 +36,8 @@
     try {
 
         console.log(
-            "docx:",
-            typeof docx
+            "easyTemplateX:",
+            typeof easyTemplateX
         );
 
         // =====================================
@@ -61,102 +61,100 @@
         );
 
         // =====================================
-        // CONVERTIR BASE64 A ARRAYBUFFER
+        // TEMPLATE WORD
         // =====================================
 
         const response =
             await fetch(
-                dataUrl
+                "template.docx"
             );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "No existe template.docx"
+            );
+        }
+
+        const templateBuffer =
+            await response.arrayBuffer();
+
+        console.log(
+            "Template cargado"
+        );
+
+        // =====================================
+        // DATOS TEMPLATE
+        // =====================================
+
+        const datos = {
+
+            nombre:
+                "Claudio Goldberg",
+
+            fecha:
+                new Date()
+                .toLocaleDateString(),
+
+            observacion:
+                "Documento generado desde ArcGIS Experience Builder",
+
+            imagen: {
+
+                _type:
+                    "image",
+
+                source:
+                    dataUrl,
+
+                format:
+                    dataUrl.includes("png")
+                    ? "image/png"
+                    : "image/jpeg",
+
+                width:
+                    600,
+
+                height:
+                    350
+            }
+        };
+
+        console.log(
+            "Datos preparados"
+        );
+
+        // =====================================
+        // PROCESAR TEMPLATE
+        // =====================================
+
+        const resultado =
+            await easyTemplateX.process(
+
+                templateBuffer,
+
+                datos
+            );
+
+        console.log(
+            "Documento procesado"
+        );
+
+        // =====================================
+        // CREAR BLOB WORD
+        // =====================================
 
         const blob =
-            await response.blob();
+            new Blob(
 
-        const imageBuffer =
-            await blob.arrayBuffer();
+                [resultado],
 
-        console.log(
-            "Imagen convertida"
-        );
+                {
 
-        // =====================================
-        // CREAR DOCUMENTO WORD
-        // =====================================
-
-        const documento =
-            new docx.Document({
-
-                sections: [
-
-                    {
-
-                        properties: {},
-
-                        children: [
-
-                            // =========================
-                            // TITULO
-                            // =========================
-
-                            new docx.Paragraph({
-
-                                spacing: {
-                                    after: 300
-                                },
-
-                                children: [
-
-                                    new docx.TextRun({
-
-                                        text:
-                                            "Mapa ArcGIS",
-
-                                        bold: true,
-
-                                        size: 32
-                                    })
-                                ]
-                            }),
-
-                            // =========================
-                            // IMAGEN
-                            // =========================
-
-                            new docx.Paragraph({
-
-                                children: [
-
-                                    new docx.ImageRun({
-
-                                        data:
-                                            imageBuffer,
-
-                                        transformation: {
-
-                                            width: 600,
-
-                                            height: 350
-                                        }
-                                    })
-                                ]
-                            })
-                        ]
-                    }
-                ]
-            });
-
-        // =====================================
-        // GENERAR DOCX
-        // =====================================
-
-        const archivoWord =
-            await docx.Packer.toBlob(
-                documento
+                    type:
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                }
             );
-
-        console.log(
-            "Word generado"
-        );
 
         // =====================================
         // DESCARGAR
@@ -164,13 +162,13 @@
 
         saveAs(
 
-            archivoWord,
+            blob,
 
-            "MapaArcGIS.docx"
+            "Resultado.docx"
         );
 
         document.body.innerHTML =
-            "<h2>✅ Word generado correctamente</h2>";
+            "<h2>✅ Documento generado correctamente</h2>";
     }
 
     catch(error) {
