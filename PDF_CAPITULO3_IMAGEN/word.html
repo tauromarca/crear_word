@@ -28,12 +28,14 @@
 <!-- ===================================== -->
 
 <script src="https://unpkg.com/docxtemplater@3.46.0/build/docxtemplater.js"></script>
+   
 
 <!-- ===================================== -->
 <!-- IMAGE MODULE -->
 <!-- ===================================== -->
 
-<script src="https://unpkg.com/docxtemplater-image-module-free@1.1.1/build/imagemodule.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/docxtemplater-image-module-free@1.1.1/build/imagemodule.min.js"></script>
 
 <!-- ===================================== -->
 <!-- FILE SAVER -->
@@ -111,33 +113,39 @@
         // =====================================
 
         const imageModule =
-            new ImageModule({
-
+            new window.ImageModule({
+        
                 centered: false,
-
-                getImage:
-                    function(tagValue) {
-
-                        const base64Data =
-                            tagValue.split(",")[1];
-
-                        return Uint8Array.from(
-
-                            atob(base64Data),
-
-                            c => c.charCodeAt(0)
+        
+                getImage: function(tagValue) {
+        
+                    if (!tagValue || tagValue.indexOf(",") === -1) {
+        
+                        console.error(
+                            "Imagen inválida:",
+                            tagValue
                         );
-                    },
-
-                getSize:
-                    function() {
-
-                        return [600, 350];
+        
+                        return new Uint8Array();
                     }
-            });
-
-        // =====================================
-        // DOCXTEMPLATER
+        
+                    const base64Data =
+                        tagValue.split(",")[1];
+        
+                    return Uint8Array.from(
+        
+                        atob(base64Data),
+        
+                        c => c.charCodeAt(0)
+                    );
+                },
+        
+                getSize: function() {
+        
+                    return [600, 350];
+                }
+            });        // =====================================
+                // DOCXTEMPLATER
         // =====================================
 
         const doc =
