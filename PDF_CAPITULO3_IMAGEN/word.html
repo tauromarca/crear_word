@@ -133,8 +133,12 @@
         // PROCESAR TEMPLATE
         // =====================================
 
+
+        const handler =
+        new window.easyTemplateX.TemplateHandler();
+    
         const resultado =
-            await window.EasyTemplateX.process(
+            await handler.process(
         
                 templateBuffer,
         
