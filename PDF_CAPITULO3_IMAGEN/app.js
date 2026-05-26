@@ -197,7 +197,7 @@
                 await view.goTo({
 
                     target:
-                        graphic.geometry.extent,
+                        graphic.geometry.extent.expand(2),
 
                     padding: 40
                 });
