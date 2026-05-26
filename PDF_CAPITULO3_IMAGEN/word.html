@@ -18,16 +18,10 @@
 </h2>
 
 <!-- ===================================== -->
-<!-- PIZZIP -->
+<!-- DOCX.JS -->
 <!-- ===================================== -->
 
-<script src="https://unpkg.com/pizzip@3.1.5/dist/pizzip.js"></script>
-
-<!-- ===================================== -->
-<!-- DOCXTEMPLATER -->
-<!-- ===================================== -->
-
-<script src="https://unpkg.com/docxtemplater@3.46.0/build/docxtemplater.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 
 <!-- ===================================== -->
 <!-- FILE SAVER -->
@@ -42,17 +36,12 @@
     try {
 
         console.log(
-            "PizZip:",
-            typeof PizZip
-        );
-
-        console.log(
-            "docxtemplater:",
-            typeof docxtemplater
+            "docx:",
+            typeof docx
         );
 
         // =====================================
-        // LEER IMAGEN
+        // LEER IMAGEN DESDE LOCALSTORAGE
         // =====================================
 
         const dataUrl =
@@ -63,86 +52,111 @@
         if (!dataUrl) {
 
             throw new Error(
-                "No existe imagen"
+                "No existe imagenArcGIS en localStorage"
             );
         }
 
         console.log(
-            "Imagen cargada:",
-            dataUrl.substring(0, 50)
+            "Imagen encontrada"
         );
 
         // =====================================
-        // TEMPLATE
+        // CONVERTIR BASE64 A ARRAYBUFFER
         // =====================================
 
         const response =
             await fetch(
-                "template.docx"
+                dataUrl
             );
 
-        if (!response.ok) {
+        const blob =
+            await response.blob();
 
-            throw new Error(
-                "No existe template.docx"
-            );
-        }
+        const imageBuffer =
+            await blob.arrayBuffer();
 
-        const arrayBuffer =
-            await response.arrayBuffer();
-
-        // =====================================
-        // ZIP
-        // =====================================
-
-        const zip =
-            new PizZip(
-                arrayBuffer
-            );
+        console.log(
+            "Imagen convertida"
+        );
 
         // =====================================
-        // DOCXTEMPLATER
+        // CREAR DOCUMENTO WORD
         // =====================================
 
-        const doc =
-            new window.docxtemplater(
+        const documento =
+            new docx.Document({
 
-                zip,
+                sections: [
 
-                {
-                    paragraphLoop: true,
-                    linebreaks: true
-                }
-            );
+                    {
 
-        // =====================================
-        // VARIABLES TEMPLATE
-        // =====================================
+                        properties: {},
 
-        doc.render({
+                        children: [
 
-            imagen: {
+                            // =========================
+                            // TITULO
+                            // =========================
 
-                width: 600,
+                            new docx.Paragraph({
 
-                height: 350,
+                                spacing: {
+                                    after: 300
+                                },
 
-                data: dataUrl
-            }
-        });
+                                children: [
+
+                                    new docx.TextRun({
+
+                                        text:
+                                            "Mapa ArcGIS",
+
+                                        bold: true,
+
+                                        size: 32
+                                    })
+                                ]
+                            }),
+
+                            // =========================
+                            // IMAGEN
+                            // =========================
+
+                            new docx.Paragraph({
+
+                                children: [
+
+                                    new docx.ImageRun({
+
+                                        data:
+                                            imageBuffer,
+
+                                        transformation: {
+
+                                            width: 600,
+
+                                            height: 350
+                                        }
+                                    })
+                                ]
+                            })
+                        ]
+                    }
+                ]
+            });
 
         // =====================================
         // GENERAR DOCX
         // =====================================
 
-        const blob =
-            doc.getZip().generate({
+        const archivoWord =
+            await docx.Packer.toBlob(
+                documento
+            );
 
-                type: "blob",
-
-                mimeType:
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            });
+        console.log(
+            "Word generado"
+        );
 
         // =====================================
         // DESCARGAR
@@ -150,21 +164,23 @@
 
         saveAs(
 
-            blob,
+            archivoWord,
 
             "MapaArcGIS.docx"
         );
 
         document.body.innerHTML =
-            "<h2>✅ Word generado</h2>";
+            "<h2>✅ Word generado correctamente</h2>";
     }
 
     catch(error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
         document.body.innerHTML =
-            "<h2>❌ " +
+            "<h2>❌ Error: " +
             error.message +
             "</h2>";
     }
