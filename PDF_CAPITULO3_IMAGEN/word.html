@@ -18,33 +18,32 @@
 </h2>
 
 <!-- ===================================== -->
-<!-- EASY TEMPLATE X -->
-<!-- ===================================== -->
-
-
-<script src="https://cdn.jsdelivr.net/npm/easy-template-x@4.1.2/dist/browser/easy-template-x.min.js"></script>
-
-<!-- ===================================== -->
 <!-- FILE SAVER -->
 <!-- ===================================== -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-<script>
+<!-- ===================================== -->
+<!-- SCRIPT PRINCIPAL -->
+<!-- ===================================== -->
+
+<script type="module">
+
+import {
+
+    TemplateHandler
+
+} from "https://cdn.jsdelivr.net/npm/easy-template-x@7.2.4/+esm";
 
 (async function () {
 
     try {
 
         console.log(
-            "easyTemplateX:",
-            window.easyTemplateX
+            "TemplateHandler:",
+            TemplateHandler
         );
-        
-        console.log(
-            "EasyTemplateX:",
-            window.EasyTemplateX
-        );
+
         // =====================================
         // LEER IMAGEN DESDE LOCALSTORAGE
         // =====================================
@@ -66,7 +65,23 @@
         );
 
         // =====================================
-        // TEMPLATE WORD
+        // CONVERTIR IMAGEN A BLOB
+        // =====================================
+
+        const imageResponse =
+            await fetch(
+                dataUrl
+            );
+
+        const imageBlob =
+            await imageResponse.blob();
+
+        console.log(
+            "Imagen convertida a Blob"
+        );
+
+        // =====================================
+        // CARGAR TEMPLATE WORD
         // =====================================
 
         const response =
@@ -81,8 +96,8 @@
             );
         }
 
-        const templateBuffer =
-            await response.arrayBuffer();
+        const templateFile =
+            await response.blob();
 
         console.log(
             "Template cargado"
@@ -110,7 +125,7 @@
                     "image",
 
                 source:
-                    dataUrl,
+                    imageBlob,
 
                 format:
                     dataUrl.includes("png")
@@ -130,49 +145,41 @@
         );
 
         // =====================================
-        // PROCESAR TEMPLATE
+        // TEMPLATE HANDLER
         // =====================================
 
-
         const handler =
-        new window.easyTemplateX.TemplateHandler();
-    
-        const resultado =
+            new TemplateHandler();
+
+        // =====================================
+        // PROCESAR DOCUMENTO
+        // =====================================
+
+        const documento =
             await handler.process(
-        
-                templateBuffer,
-        
+
+                templateFile,
+
                 datos
             );
+
         console.log(
             "Documento procesado"
         );
 
         // =====================================
-        // CREAR BLOB WORD
-        // =====================================
-
-        const blob =
-            new Blob(
-
-                [resultado],
-
-                {
-
-                    type:
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                }
-            );
-
-        // =====================================
-        // DESCARGAR
+        // DESCARGAR WORD
         // =====================================
 
         saveAs(
 
-            blob,
+            documento,
 
             "Resultado.docx"
+        );
+
+        console.log(
+            "Documento descargado"
         );
 
         document.body.innerHTML =
