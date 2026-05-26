@@ -31,7 +31,22 @@
                 ? obj[field]
                 : "";
         }
-
+        function valorCheck(valor) {
+        
+            const valorRaw =
+                String(valor || "")
+                .toLowerCase();
+        
+            return (
+                valorRaw.includes("si")
+                ||
+                valorRaw.includes("sí")
+            )
+        
+            ? "☑"
+        
+            : "☐";
+        }
         function prepararTablaPriorizada(rawData, domainMap) {
 
             const getLabel = (f, v) =>
@@ -379,7 +394,78 @@
                     "Atributos:",
                     atributos
                 );
-
+                // =====================================
+                // CHECKBOXES
+                // =====================================
+                
+                const checks = {
+                
+                    PLAGAS:
+                        valorCheck(
+                            atributos.requiere_plagas
+                        ),
+                
+                    ASBELTO_CUBIERTA:
+                        valorCheck(
+                            atributos.requiere_asbesto_cubierta
+                        ),
+                
+                    ASBELTO_FACHADA:
+                        valorCheck(
+                            atributos.requiere_asbesto_fachada
+                        ),
+                
+                    ASBELTO_LOGGIA:
+                        valorCheck(
+                            atributos.requiere_asbesto_logia
+                        ),
+                
+                    ASBELTO_REDES:
+                        valorCheck(
+                            atributos.requiere_asbesto_redes
+                        ),
+                
+                    RIESGO_REDES:
+                        valorCheck(
+                            atributos.riesgo_redes_grave_deterioro
+                        ),
+                
+                    RIESGO_ESTRUCTURA:
+                        valorCheck(
+                            atributos.riesgo_estructura_grave_deterioro
+                        ),
+                
+                    RIESGO_ESCALERAS:
+                        valorCheck(
+                            atributos.riesgo_escaleras_grave_deterioro
+                        ),
+                
+                    RIESGO_TECHUMBRE:
+                        valorCheck(
+                            atributos.riesgo_techumbre_grave_deterioro
+                        ),
+                
+                    REGULACION:
+                        valorCheck(
+                            atributos.requiere_regularizacion
+                        ),
+                
+                    EFICIENCIA_ENERGETICA:
+                        valorCheck(
+                            atributos.eficiencia_energetica
+                        ),
+                
+                    ACONDICIONAMIENTO:
+                        valorCheck(
+                            atributos.acondicionamiento_termico
+                        )
+                };
+                
+                console.log(
+                    "Checks:",
+                    checks
+                );
+                                
                 // =====================================
                 // TABLA PRIORIZADA
                 // =====================================
@@ -404,7 +490,7 @@
                     "datosWord",
 
                     JSON.stringify({
-
+                        ...checks,
                         copropiedad_formalizada:
                             atributos.copropiedad_formalizada || "",
 
