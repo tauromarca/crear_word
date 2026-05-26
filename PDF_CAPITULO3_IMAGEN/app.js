@@ -119,7 +119,96 @@
                     "Feature:",
                     feature
                 );
-
+                // =====================================
+                // ATTACHMENTS
+                // =====================================
+                
+                const attachments =
+                    await layer.queryAttachments({
+                
+                        objectIds: [oid]
+                    });
+                
+                console.log(
+                    "Attachments:",
+                    attachments
+                );
+                
+                const listaAdjuntos =
+                    attachments[oid] || [];
+                
+                const imagenesAdjuntas = [];
+                
+                for (const adj of listaAdjuntos) {
+                
+                    // Solo imagenes
+                    if (
+                        adj.contentType &&
+                        adj.contentType.startsWith(
+                            "image/"
+                        )
+                    ) {
+                
+                        const imageUrl =
+                            adj.url;
+                
+                        console.log(
+                            "Descargando:",
+                            imageUrl
+                        );
+                
+                        const response =
+                            await fetch(
+                                imageUrl
+                            );
+                
+                        const blob =
+                            await response.blob();
+                
+                        const dataUrl =
+                            await new Promise(resolve => {
+                
+                                const reader =
+                                    new FileReader();
+                
+                                reader.onload =
+                                    () => resolve(
+                                        reader.result
+                                    );
+                
+                                reader.readAsDataURL(
+                                    blob
+                                );
+                            });
+                
+                        imagenesAdjuntas.push({
+                
+                            nombre:
+                                adj.name,
+                
+                            dataUrl:
+                                dataUrl
+                        });
+                    }
+                }
+                
+                // =====================================
+                // GUARDAR ATTACHMENTS
+                // =====================================
+                
+                localStorage.setItem(
+                
+                    "imagenesAdjuntas",
+                
+                    JSON.stringify(
+                        imagenesAdjuntas
+                    )
+                );
+                
+                console.log(
+                    "Imagenes adjuntas:",
+                    imagenesAdjuntas
+                );
                 // =====================================
                 // ATRIBUTOS
                 // =====================================
