@@ -86,7 +86,9 @@ import {
             const blob =
                 await response.blob();
         
-            imagenesWord.push({
+        imagenesWord.push({
+        
+            foto: {
         
                 _type:
                     "image",
@@ -104,8 +106,12 @@ import {
         
                 height:
                     180
-            });
-        }
+            },
+        
+            nombre:
+                img.nombre || ""
+        });        
+    }
         // =====================================
         // LEER IMAGEN
         // =====================================
