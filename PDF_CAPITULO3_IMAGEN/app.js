@@ -52,6 +52,10 @@
 
             try {
 
+                // =====================================
+                // MAPA
+                // =====================================
+
                 const map =
                     new EsriMap({
 
@@ -72,6 +76,10 @@
 
                 await view.when();
 
+                // =====================================
+                // FEATURE LAYER
+                // =====================================
+
                 const layer =
                     new EsriFeatureLayer({
 
@@ -87,13 +95,72 @@
                 query.returnGeometry =
                     true;
 
+                query.outFields =
+                    ["*"];
+
                 const result =
                     await layer.queryFeatures(
                         query
                     );
 
+                if (
+                    !result.features.length
+                ) {
+
+                    throw new Error(
+                        "No existe feature"
+                    );
+                }
+
                 const feature =
                     result.features[0];
+
+                console.log(
+                    "Feature:",
+                    feature
+                );
+
+                // =====================================
+                // ATRIBUTOS
+                // =====================================
+
+                const atributos =
+                    feature.attributes;
+
+                console.log(
+                    "Atributos:",
+                    atributos
+                );
+
+                // =====================================
+                // GUARDAR DATOS WORD
+                // =====================================
+
+                localStorage.setItem(
+
+                    "datosWord",
+
+                    JSON.stringify({
+
+                        copropiedad_formalizada:
+                            atributos.copropiedad_formalizada || "",
+ 
+                        rut_copropiedad:
+                            atributos.rut_copropiedad || "",
+
+                        nombre_conjunto:
+                            atributos.nombre_conjunto || "",
+                        codigo_conjunto:
+                            atributos.codigo_conjunto || "",
+
+                        objectid:
+                            atributos.objectid || oid
+                    })
+                );
+
+                // =====================================
+                // GRAFICO
+                // =====================================
 
                 const graphic =
                     new EsriGraphic({
@@ -122,6 +189,10 @@
                 view.graphics.add(
                     graphic
                 );
+
+                // =====================================
+                // ZOOM
+                // =====================================
 
                 await view.goTo({
 
@@ -198,8 +269,9 @@
                     };
 
                 status.textContent =
-                    "Imagen lista";
+                    "Imagen y datos listos";
             }
+
             catch(error) {
 
                 console.error(error);
