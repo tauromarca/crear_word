@@ -21,6 +21,164 @@
         const FS_URL =
         "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_885775529ba244759922b6cef00631de_form/FeatureServer/0";
 
+        // =====================================
+        // FUNCIONES TABLA PRIORIZADA
+        // =====================================
+
+        function getVal(obj, field) {
+
+            return obj && obj[field] != null
+                ? obj[field]
+                : "";
+        }
+
+        function prepararTablaPriorizada(rawData, domainMap) {
+
+            const getLabel = (f, v) =>
+
+                (domainMap[f] &&
+                 domainMap[f][v] !== undefined)
+
+                ? domainMap[f][v]
+
+                : v;
+
+            let partidas = [
+
+                {
+                    nombre:
+                        "A. Áreas Verdes y Equipamiento",
+
+                    p:
+                        getVal(rawData, "a_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion",
+                            getVal(rawData, "tipo_intervencion")
+                        )
+                },
+
+                {
+                    nombre:
+                        "B. Cierres Perimetrales",
+
+                    p:
+                        getVal(rawData, "b_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion_perimetrales",
+                            getVal(rawData, "tipo_intervencion_perimetrales")
+                        )
+                },
+
+                {
+                    nombre:
+                        "C. Techumbre",
+
+                    p:
+                        getVal(rawData, "c_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion_techumbre",
+                            getVal(rawData, "tipo_intervencion_techumbre")
+                        )
+                },
+
+                {
+                    nombre:
+                        "D. Ascensores, Escaleras y/o Circulaciones",
+
+                    p:
+                        getVal(rawData, "d_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion_escaleras",
+                            getVal(rawData, "tipo_intervencion_escaleras")
+                        )
+                },
+
+                {
+                    nombre:
+                        "E. Fachadas y/o Muros",
+
+                    p:
+                        getVal(rawData, "e_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion_fachada",
+                            getVal(rawData, "tipo_intervencion_fachada")
+                        )
+                },
+
+                {
+                    nombre:
+                        "F. Sistemas de Iluminación",
+
+                    p:
+                        getVal(rawData, "f_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "tipo_intervencion_iluminaria",
+                            getVal(rawData, "tipo_intervencion_iluminaria")
+                        )
+                },
+
+                {
+                    nombre:
+                        "G. Redes de Servicio",
+
+                    p:
+                        getVal(rawData, "g_ponderado"),
+
+                    intervencion:
+                        getLabel(
+                            "Tipo_Intervencion_Redes_servicios",
+                            getVal(rawData, "Tipo_Intervencion_Redes_servicios")
+                        )
+                },
+
+                {
+                    nombre:
+                        "K. Accesibilidad Universal",
+
+                    p:
+                        getVal(rawData, "k_ponderado"),
+
+                    intervencion:
+                        "No aplica"
+                }
+            ];
+
+            partidas.sort(
+
+                (a, b) =>
+
+                parseFloat(b.p || 0)
+                -
+                parseFloat(a.p || 0)
+            );
+
+            return partidas.map(item => ({
+
+                nombre:
+                    item.nombre,
+
+                p:
+                    !isNaN(parseFloat(item.p))
+                    ? parseFloat(item.p).toFixed(4)
+                    : "0.0000",
+
+                intervencion:
+                    item.intervencion || ""
+            }));
+        }
+
         async function ejecutar() {
 
             const status =
@@ -119,96 +277,97 @@
                     "Feature:",
                     feature
                 );
+
                 // =====================================
                 // ATTACHMENTS
                 // =====================================
-                
+
                 const attachments =
                     await layer.queryAttachments({
-                
+
                         objectIds: [oid]
                     });
-                
+
                 console.log(
                     "Attachments:",
                     attachments
                 );
-                
+
                 const listaAdjuntos =
                     attachments[oid] || [];
-                
+
                 const imagenesAdjuntas = [];
-                
+
                 for (const adj of listaAdjuntos) {
-                
-                    // Solo imagenes
+
                     if (
                         adj.contentType &&
                         adj.contentType.startsWith(
                             "image/"
                         )
                     ) {
-                
+
                         const imageUrl =
                             adj.url;
-                
+
                         console.log(
                             "Descargando:",
                             imageUrl
                         );
-                
+
                         const response =
                             await fetch(
                                 imageUrl
                             );
-                
+
                         const blob =
                             await response.blob();
-                
+
                         const dataUrl =
                             await new Promise(resolve => {
-                
+
                                 const reader =
                                     new FileReader();
-                
+
                                 reader.onload =
                                     () => resolve(
                                         reader.result
                                     );
-                
+
                                 reader.readAsDataURL(
                                     blob
                                 );
                             });
-                
+
                         imagenesAdjuntas.push({
-                
+
                             nombre:
                                 adj.name,
-                
+
                             dataUrl:
                                 dataUrl
                         });
                     }
                 }
-                
+
                 // =====================================
                 // GUARDAR ATTACHMENTS
                 // =====================================
-                
+
                 localStorage.setItem(
-                
+
                     "imagenesAdjuntas",
-                
+
                     JSON.stringify(
                         imagenesAdjuntas
                     )
                 );
-                
+
                 console.log(
                     "Imagenes adjuntas:",
                     imagenesAdjuntas
                 );
+
                 // =====================================
                 // ATRIBUTOS
                 // =====================================
@@ -219,6 +378,21 @@
                 console.log(
                     "Atributos:",
                     atributos
+                );
+
+                // =====================================
+                // TABLA PRIORIZADA
+                // =====================================
+
+                const tabla_priorizada =
+                    prepararTablaPriorizada(
+                        atributos,
+                        {}
+                    );
+
+                console.log(
+                    "Tabla priorizada:",
+                    tabla_priorizada
                 );
 
                 // =====================================
@@ -233,14 +407,18 @@
 
                         copropiedad_formalizada:
                             atributos.copropiedad_formalizada || "",
- 
+
                         rut_copropiedad:
                             atributos.rut_copropiedad || "",
 
                         nombre_conjunto:
                             atributos.nombre_conjunto || "",
+
                         codigo_conjunto:
                             atributos.codigo_conjunto || "",
+
+                        tabla_priorizada:
+                            tabla_priorizada,
 
                         objectid:
                             atributos.objectid || oid
