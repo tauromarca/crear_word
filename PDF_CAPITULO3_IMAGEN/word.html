@@ -24,7 +24,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <!-- ===================================== -->
-<!-- SCRIPT PRINCIPAL -->
+<!-- EASY TEMPLATE X -->
 <!-- ===================================== -->
 
 <script type="module">
@@ -45,7 +45,31 @@ import {
         );
 
         // =====================================
-        // LEER IMAGEN DESDE LOCALSTORAGE
+        // LEER DATOS ARC GIS
+        // =====================================
+
+        const datosArcGIS =
+            JSON.parse(
+
+                localStorage.getItem(
+                    "datosWord"
+                )
+            );
+
+        if (!datosArcGIS) {
+
+            throw new Error(
+                "No existen datosWord en localStorage"
+            );
+        }
+
+        console.log(
+            "Datos ArcGIS:",
+            datosArcGIS
+        );
+
+        // =====================================
+        // LEER IMAGEN
         // =====================================
 
         const dataUrl =
@@ -56,7 +80,7 @@ import {
         if (!dataUrl) {
 
             throw new Error(
-                "No existe imagenArcGIS en localStorage"
+                "No existe imagenArcGIS"
             );
         }
 
@@ -77,7 +101,7 @@ import {
             await imageResponse.blob();
 
         console.log(
-            "Imagen convertida a Blob"
+            "Imagen convertida"
         );
 
         // =====================================
@@ -109,15 +133,20 @@ import {
 
         const datos = {
 
-            nombre:
-                "Claudio Goldberg",
+            copropiedad_formalizada:
+                datosArcGIS.copropiedad_formalizada || "",
 
-            fecha:
-                new Date()
-                .toLocaleDateString(),
+            rut_copropiedad:
+                datosArcGIS.rut_copropiedad || "",
 
-            observacion:
-                "Documento generado desde ArcGIS Experience Builder",
+            nombre_conjunto:
+                datosArcGIS.nombre_conjunto || "",
+
+            codigo_conjunto:
+                datosArcGIS.codigo_conjunto|| "",
+
+            objectid:
+                datosArcGIS.objectid || "",
 
             imagen: {
 
@@ -141,7 +170,8 @@ import {
         };
 
         console.log(
-            "Datos preparados"
+            "Datos template:",
+            datos
         );
 
         // =====================================
