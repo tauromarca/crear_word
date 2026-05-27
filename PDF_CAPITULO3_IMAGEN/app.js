@@ -93,17 +93,23 @@ require([
             // 5. Lógica de Negocio (Checks y Tabla IV)
             const check = (v) => String(v || "").toLowerCase().includes("si") ? "☑" : "☐";
             
-            // Ordenamiento de Tabla IV
+            // ORDENAMIENTO DE TABLA IV - Coincidiendo con los tags del Word
             const tabla = [
-                { nombre: "A. Áreas Verdes", p: parseFloat(raw.a_ponderado || 0) },
-                { nombre: "B. Cierres", p: parseFloat(raw.b_ponderado || 0) },
-                { nombre: "C. Techumbre", p: parseFloat(raw.c_ponderado || 0) },
-                { nombre: "D. Ascensores", p: parseFloat(raw.d_ponderado || 0) },
-                { nombre: "E. Fachadas", p: parseFloat(raw.e_ponderado || 0) },
-                { nombre: "F. Iluminación", p: parseFloat(raw.f_ponderado || 0) },
-                { nombre: "G. Redes", p: parseFloat(raw.g_ponderado || 0) },
-                { nombre: "K. Accesibilidad", p: parseFloat(raw.k_ponderado || 0) }
-            ].sort((a, b) => b.p - a.p).map(i => ({ partida: i.nombre, puntaje: i.p.toFixed(4) }));
+                { nombre: "A. Áreas Verdes", p: parseFloat(raw.a_ponderado || 0), intervencion: raw.tipo_intervencion || "" },
+                { nombre: "B. Cierres Perimetrales", p: parseFloat(raw.b_ponderado || 0), intervencion: raw.tipo_intervencion_perimetrales || "" },
+                { nombre: "C. Techumbre", p: parseFloat(raw.c_ponderado || 0), intervencion: raw.tipo_intervencion_techumbre || "" },
+                { nombre: "D. Ascensores y Circulaciones", p: parseFloat(raw.d_ponderado || 0), intervencion: raw.tipo_intervencion_ascensores || "" },
+                { nombre: "E. Fachadas y/o Muros", p: parseFloat(raw.e_ponderado || 0), intervencion: raw.tipo_intervencion_fachada || "" },
+                { nombre: "F. Sistemas de Iluminación", p: parseFloat(raw.f_ponderado || 0), intervencion: raw.tipo_intervencion_iluminaria || "" },
+                { nombre: "G. Redes de Servicio", p: parseFloat(raw.g_ponderado || 0), intervencion: raw.Tipo_Intervencion_Redes_servicios || "" },
+                { nombre: "K. Accesibilidad Universal", p: parseFloat(raw.k_ponderado || 0), intervencion: "No aplica" }
+            ]
+            .sort((a, b) => b.p - a.p) // Ordenar de mayor a menor
+            .map(i => ({ 
+                nombre: i.nombre, 
+                p: i.p.toFixed(4), 
+                intervencion: sanitize(i.intervencion) // Usamos 'intervencion' sin acento para evitar errores de código
+            }));
 
             // Objeto final para el template
             const datosFinales = {};
@@ -120,7 +126,11 @@ require([
             Object.assign(datosFinales, {
                 PLAGAS: check(raw.requiere_plagas),
                 ASBELTO_CUBIERTA: check(raw.requiere_asbesto_cubierta),
+                ASBELTO_FACHADA: check(raw.requiere_asbesto_fachada),
+                ASBELTO_LOGGIA: check(raw.requiere_asbesto_logia),
+                ASBELTO_REDES: check(raw.requiere_asbesto_redes),
                 RIESGO_REDES: check(raw.riesgo_redes_grave_deterioro),
+                EFICIENCIA_ENERGETICA: check(raw.eficiencia_energetica),
                 REGULACION: check(raw.requiere_regularizacion),
                 tabla_priorizada: tabla,
                 imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
