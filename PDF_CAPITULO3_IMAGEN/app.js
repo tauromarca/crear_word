@@ -1,7 +1,6 @@
 (function () {
 
    "use strict";
-
    require([
    
        "esri/Map",
@@ -9,7 +8,6 @@
        "esri/layers/FeatureLayer",
        "esri/Graphic",
        "esri/identity/IdentityManager",
-       "esri/identity/OAuthInfo",
        "esri/request"
    
    ], function (
@@ -19,11 +17,11 @@
        EsriFeatureLayer,
        EsriGraphic,
        esriId,
-       OAuthInfo,
        esriRequest
    
    ) {
-        const FS_URL =
+
+   const FS_URL =
         "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_885775529ba244759922b6cef00631de_form/FeatureServer/0";
 
         // =====================================
@@ -232,25 +230,14 @@
                   // =====================================
                   // REUTILIZAR SESIÓN DE EXPERIENCE BUILDER
                   // =====================================
-                  
-                  const info = new OAuthInfo({
-                  
-                      appId: "aeNAdAP7A0xhb786",
-                  
-                      portalUrl: "https://www.arcgis.com",
-                  
-                      popup: false
-                  });
-                  
-                  esriId.registerOAuthInfos([info]);
-                  
                   esriId.enablePostMessageAuth();
-
-                  esriId.registerServers([{
-                      server: "https://services3.arcgis.com"
-                  }]);
-
                   
+                  // Esperar credenciales existentes de Experience Builder
+                  await esriId.checkSignInStatus(
+                      "https://www.arcgis.com/sharing"
+                  );
+                  
+
                   try {
                   
                       await esriId.checkSignInStatus(
