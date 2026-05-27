@@ -56,7 +56,7 @@ require([
             const raw = feature.attributes;
 
             // 3. Descargar Fotos
-            status.textContent = "📸 Procesando adjuntos...";
+            //status.textContent = "📸 Procesando adjuntos...";
             const attachments = await layer.queryAttachments({ objectIds: [oid] });
             const listaAdjuntos = attachments[oid] || [];
             const imagenesWord = [];
@@ -72,7 +72,7 @@ require([
             }
 
             // 4. Captura de Mapa
-            status.textContent = "🗺️ Generando vista de mapa...";
+            //status.textContent = "🗺️ Generando vista de mapa...";
             const view = new MapView({
                 container: "map-view",
                 map: new Map({ basemap: "hybrid" }),
@@ -130,6 +130,9 @@ require([
                 ASBELTO_LOGGIA: check(raw.requiere_asbesto_logia),
                 ASBELTO_REDES: check(raw.requiere_asbesto_redes),
                 RIESGO_REDES: check(raw.riesgo_redes_grave_deterioro),
+                RIESGO_ESTRUCTURA: check(raw.riesgo_estructura_grave_deterioro),
+                RIESGO_ESCALERAS: check(raw.riesgo_escaleras_grave_deterioro),
+                RIESGO_TECHUMBRE: check(raw.riesgo_techumbre_grave_deterioro),
                 EFICIENCIA_ENERGETICA: check(raw.eficiencia_energetica),
                 REGULACION: check(raw.requiere_regularizacion),
                 tabla_priorizada: tabla,
