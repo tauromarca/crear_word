@@ -135,7 +135,7 @@ require([
                 RIESGO_TECHUMBRE: check(raw.riesgo_techumbre_grave_deterioro),
                 EFICIENCIA_ENERGETICA: check(raw.eficiencia_energetica),
                 REGULACION: check(raw.requiere_regularizacion),
-                ACONDICIONAMIENTO: check(raw.acondicionamiento_termico,
+                ACONDICIONAMIENTO: check(raw.acondicionamiento_termico),
                 tabla_priorizada: tabla,
                 imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
                 imagenes_adjuntas: imagenesWord
