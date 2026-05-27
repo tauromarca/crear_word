@@ -2,26 +2,27 @@
 
    "use strict";
 
-    require([
-
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/layers/FeatureLayer",
-        "esri/Graphic",
-        "esri/identity/IdentityManager",
-        "esri/request"
-
-    ], function (
-
-        EsriMap,
-        EsriMapView,
-        EsriFeatureLayer,
-        EsriGraphic,
-        esriId,
-        esriRequest
-
-    ) {
-
+   require([
+   
+       "esri/Map",
+       "esri/views/MapView",
+       "esri/layers/FeatureLayer",
+       "esri/Graphic",
+       "esri/identity/IdentityManager",
+       "esri/identity/OAuthInfo",
+       "esri/request"
+   
+   ], function (
+   
+       EsriMap,
+       EsriMapView,
+       EsriFeatureLayer,
+       EsriGraphic,
+       esriId,
+       OAuthInfo,
+       esriRequest
+   
+   ) {
         const FS_URL =
         "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_885775529ba244759922b6cef00631de_form/FeatureServer/0";
 
@@ -228,16 +229,45 @@
             }
 
             try {
-                // =====================================
-                // REUTILIZAR SESIÓN DE ARCGIS ONLINE
-                // =====================================
-
-                await esriId.checkSignInStatus(
-                    "https://www.arcgis.com/sharing"
-                );
-
-                esriId.enablePostMessageAuth();
-
+                  // =====================================
+                  // REUTILIZAR SESIÓN DE EXPERIENCE BUILDER
+                  // =====================================
+                  
+                  const info = new OAuthInfo({
+                  
+                      appId: "aeNAdAP7A0xhb786",
+                  
+                      portalUrl: "https://www.arcgis.com",
+                  
+                      popup: false
+                  });
+                  
+                  esriId.registerOAuthInfos([info]);
+                  
+                  esriId.enablePostMessageAuth();
+                  
+                  try {
+                  
+                      await esriId.checkSignInStatus(
+                          info.portalUrl + "/sharing"
+                      );
+                  
+                      console.log(
+                          "Sesión ArcGIS reutilizada"
+                      );
+                  
+                  }
+                  catch {
+                  
+                      console.log(
+                          "No existe sesión activa"
+                      );
+                  
+                      await esriId.getCredential(
+                          info.portalUrl + "/sharing"
+                      );
+                  }
+  
                 // =====================================
                 // MAPA
                 // =====================================
