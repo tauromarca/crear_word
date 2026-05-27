@@ -245,6 +245,11 @@
                   esriId.registerOAuthInfos([info]);
                   
                   esriId.enablePostMessageAuth();
+
+                  esriId.registerServers([{
+                      server: "https://services3.arcgis.com"
+                  }]);
+
                   
                   try {
                   
