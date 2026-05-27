@@ -1,20 +1,24 @@
 (function () {
 
-    "use strict";
+   "use strict";
 
     require([
 
         "esri/Map",
         "esri/views/MapView",
         "esri/layers/FeatureLayer",
-        "esri/Graphic"
+        "esri/Graphic",
+        "esri/identity/IdentityManager",
+        "esri/request"
 
     ], function (
 
         EsriMap,
         EsriMapView,
         EsriFeatureLayer,
-        EsriGraphic
+        EsriGraphic,
+        esriId,
+        esriRequest
 
     ) {
 
@@ -224,6 +228,15 @@
             }
 
             try {
+                // =====================================
+                // REUTILIZAR SESIÓN DE ARCGIS ONLINE
+                // =====================================
+
+                await esriId.checkSignInStatus(
+                    "https://www.arcgis.com/sharing"
+                );
+
+                esriId.enablePostMessageAuth();
 
                 // =====================================
                 // MAPA
@@ -248,15 +261,16 @@
                     });
 
                 await view.when();
-
-                // =====================================
+               // =====================================
                 // FEATURE LAYER
                 // =====================================
 
                 const layer =
                     new EsriFeatureLayer({
 
-                        url: FS_URL
+                        url: FS_URL,
+
+                        outFields: ["*"]
                     });
 
                 const query =
@@ -292,6 +306,7 @@
                     "Feature:",
                     feature
                 );
+
 
                 // =====================================
                 // ATTACHMENTS
