@@ -1,118 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Generar Ficha</title>
-
-<!-- Librerías -->
-<script src="https://unpkg.com/pizzip@3.1.5/dist/pizzip.js"></script>
-<script src="https://unpkg.com/docxtemplater@3.37.1/build/docxtemplater.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-<style>
-body { font-family: Arial; background: #f4f4f4; text-align: center; padding-top: 40px; }
-.container { background: white; padding: 25px; border-radius: 10px; width: 350px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-#status { margin-top: 15px; font-weight: bold; }
-</style>
+    <meta charset="UTF-8">
+    <title>Generador Institucional DTC</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); text-align: center; max-width: 450px; width: 90%; }
+        #status { color: #2c3e50; font-weight: 600; margin-top: 20px; line-height: 1.4; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #map-view { width: 1000px; height: 800px; position: absolute; left: -10000px; } /* Procesamiento invisible */
+    </style>
 </head>
-
 <body>
-<div class="container">
-  <h2>Generando Ficha</h2>
-  <div id="status">Esperando parámetros...</div>
-</div>
+    <div class="card">
+        <div id="loader" class="loader"></div>
+        <div id="status">Iniciando sistema institucional...</div>
+    </div>
+    <div id="map-view"></div>
 
-<script>
-// ================= CONFIG =================
-const PLANTILLA_URL = "anexo2.docx";
-
-// ================= UTIL =================
-function getAllParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const params = {};
-  for (const [key, value] of urlParams) {
-    // Si parece una fecha (timestamp largo), formatear
-    if (!isNaN(value) && value.length > 11) {
-       params[key] = new Date(parseInt(value)).toLocaleDateString("es-CL");
-    } else {
-       params[key] = value;
-    }
-  }
-  return params;
-}
-
-// ================= 🔥 CHECKBOX GENERICO =================
-function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
-  opciones.forEach((opt, i) => {
-    attr[`${prefijo}${i+1}`] = "☐";
-  });
-
-  const valor = attr[campo];
-  opciones.forEach((opt, i) => {
-    if (valor == opt.code || valor == opt.label) {
-      attr[`${prefijo}${i+1}`] = "☑";
-    }
-  });
-  return attr;
-}
-
-// ================= MAIN =================
-async function generar() {
-  const status = document.getElementById("status");
-  status.innerHTML = "Procesando documento...";
-
-  try {
-    // Capturar todos los datos desde la URL
-    let attr = getAllParams();
-
-    if (Object.keys(attr).length === 0) {
-      status.innerHTML = "Error: No se recibieron datos por URL";
-      return;
-    }
-
- 
-    // 🔥 LOGICA DE CHECKBOXES (Basada en los valores recibidos)
-    // Para Visitas
-    attr = aplicarCheckboxGenerico(attr, "A_TIPO_VISITA", [
-      {code: "1° Visita", label: "1° Visita"},
-      {code: "2° Visita", label: "2° Visita"},
-      {code: "3° Visita", label: "3° Visita"}
-    ], "v");
-
-    // Para Autorización
-    attr = aplicarCheckboxGenerico(attr, "autorizacion", [
-      {code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble"},
-      {code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble"},
-      {code: "Se deja Notificación", label: "Se deja Notificación"}
-    ], "aut");
-    // ================= DOCX =================
-    const response = await fetch(PLANTILLA_URL);
-    if (!response.ok) throw new Error("No se pudo cargar la plantilla .docx");
-    
-    const content = await response.arrayBuffer();
-    const zip = new PizZip(content);
-
-    const doc = new window.docxtemplater(zip, {
-      delimiters: { start: "[[", end: "]]" },
-      paragraphLoop: true,
-      linebreaks: true
-    });
-
-    doc.setData(attr);
-    doc.render();
-
-    const blob = doc.getZip().generate({ type: "blob" });
-    saveAs(blob, `Ficha_${attr.rut_asignatario || 'Generica'}.docx`);
-
-    status.innerHTML = "Documento generado ✔";
-
-  } catch (error) {
-    console.error(error);
-    status.innerHTML = "Error al generar el documento";
-  }
-}
-
-window.onload = generar;
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
