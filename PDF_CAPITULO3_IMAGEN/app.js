@@ -502,7 +502,44 @@
 
                         codigo_conjunto:
                             atributos.codigo_conjunto || "",
-
+                        nombre_copropiedad:
+                            atributos.nombre_copropiedad || "",
+                        copropiedad_beneficio:
+                            atributos.copropiedad_beneficio || "",
+                        obras_realizadas:
+                            atributos.obras_realizadas || "",
+                        nombre_direccion:
+                            atributos.nombre_direccion || "",
+                        numero_direccion:
+                            atributos.numero_direccion || "",
+                        comuna:
+                            atributos.comuna || "",
+                        n_departamentos:
+                            atributos.n_departamentos || "",
+                        superficie_promedio:
+                            atributos.superficie_promedio || "",
+                        anio_recepcion:
+                            atributos.anio_recepcion || "",
+                        nombre_revisor_ep:
+                            atributos.nombre_revisor_ep || "",
+                        representante_legal:
+                            atributos.representante_legal || "",
+                        rut_entidad:
+                            atributos.rut_entidad || "",
+                        nombre_revisor_ep:
+                            atributos.nombre_revisor_ep || "",
+                        rut_revisor_ep:
+                            atributos.rut_revisor_ep || "",
+                        email_revidor_ep:
+                            atributos.email_revidor_ep || "",
+                        nombre_dirigente:
+                            atributos.nombre_dirigente || "",
+                        rut_dirigente:
+                            atributos.rut_dirigente || "",
+                        email_dirigente:
+                            atributos.email_dirigente || "",
+                        enlace_fotos:
+                            atributos.enlace_fotos || "",
                         tabla_priorizada:
                             tabla_priorizada,
 
