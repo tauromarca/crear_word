@@ -98,7 +98,14 @@ require([
                 { nombre: "A. Áreas Verdes", p: parseFloat(raw.a_ponderado || 0), intervencion: raw.tipo_intervencion || "" },
                 { nombre: "B. Cierres Perimetrales", p: parseFloat(raw.b_ponderado || 0), intervencion: raw.tipo_intervencion_perimetrales || "" },
                 { nombre: "C. Techumbre", p: parseFloat(raw.c_ponderado || 0), intervencion: raw.tipo_intervencion_techumbre || "" },
-                { nombre: "D. Ascensores y Circulaciones", p: parseFloat(raw.d_ponderado || 0), intervencion: raw.tipo_intervencion_ascensores || "" },
+                {
+                  nombre: "d. Obras en Ascensores, Escaleras y/o Circulaciones",
+                  p: parseFloat(raw.d_ponderado || 0),
+                  intervencion:
+                    raw.tipo_intervencion_ascensores !== ""
+                      ? raw.tipo_intervencion_ascensores
+                      : (raw.tipo_intervencion_escaleras || "")
+                }               
                 { nombre: "E. Fachadas y/o Muros", p: parseFloat(raw.e_ponderado || 0), intervencion: raw.tipo_intervencion_fachada || "" },
                 { nombre: "F. Sistemas de Iluminación", p: parseFloat(raw.f_ponderado || 0), intervencion: raw.tipo_intervencion_iluminaria || "" },
                 { nombre: "G. Redes de Servicio", p: parseFloat(raw.g_ponderado || 0), intervencion: raw.Tipo_Intervencion_Redes_servicios || "" },
