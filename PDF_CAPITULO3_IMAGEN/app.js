@@ -105,7 +105,7 @@ require([
                     raw.tipo_intervencion_ascensores !== ""
                       ? raw.tipo_intervencion_ascensores
                       : (raw.tipo_intervencion_escaleras || "")
-                }               
+                },               
                 { nombre: "E. Fachadas y/o Muros", p: parseFloat(raw.e_ponderado || 0), intervencion: raw.tipo_intervencion_fachada || "" },
                 { nombre: "F. Sistemas de Iluminación", p: parseFloat(raw.f_ponderado || 0), intervencion: raw.tipo_intervencion_iluminaria || "" },
                 { nombre: "G. Redes de Servicio", p: parseFloat(raw.g_ponderado || 0), intervencion: raw.Tipo_Intervencion_Redes_servicios || "" },
