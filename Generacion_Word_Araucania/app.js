@@ -21,7 +21,7 @@ require([
         temp.textContent = str;
         return temp.innerHTML;
     }
-    function aplicarCheckboxGenerico(attr, campo, opciones, prefijo) {
+    function aplicarCheckboxGenerico(datosFinales, campo, opciones, prefijo) {
         opciones.forEach((opt, i) => {
             attr[`${prefijo}${i + 1}`] = "☐";
         });
@@ -125,12 +125,12 @@ require([
 
             // Hallazgo 2.2: Limpiar URL para privacidad
             if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
-            aplicarCheckboxGenerico(attr,  raw[A_TIPO_VISITA], [
+            aplicarCheckboxGenerico(datosFinales,  raw.A_TIPO_VISITA, [
                 { code: 1, label: "1° Visita" },
                 { code: 2, label: "2° Visita" },
                 { code: 3, label: "3° Visita" }
             ], "v");
-            aplicarCheckboxGenerico(attr, (raw.autorizacion), [
+            aplicarCheckboxGenerico(datosFinales, (raw.autorizacion), [
                 { code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble" },
                 { code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble" },
                 { code: "Se deja Notificación", label: "Se deja Notificación" }
