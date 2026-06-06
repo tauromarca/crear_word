@@ -150,9 +150,9 @@ require([
                 "v"
             );
             aplicarCheckboxGenerico(datosFinales, raw.autorizacion, [
-                { code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble" },
-                { code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble" },
-                { code: "Se deja Notificación", label: "Se deja Notificación" }
+                { code: 1, label: "Autoriza fotografías inmuebles" },
+                { code: 2, label: "No Autoriza fotografías inmuebles" },
+                { code: 3, label: "Se deja Notificación" }
             ], "aut");
 
  
