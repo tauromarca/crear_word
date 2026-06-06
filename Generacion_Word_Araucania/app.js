@@ -21,20 +21,21 @@ require([
         temp.textContent = str;
         return temp.innerHTML;
     }
-    function aplicarCheckboxGenerico(datosFinales, campo, opciones, prefijo) {
+    function aplicarCheckboxGenerico(obj, valor, opciones, prefijo) {
+
         opciones.forEach((opt, i) => {
-            datosFinales[`${prefijo}${i + 1}`] = "☐";
+            obj[`${prefijo}${i + 1}`] = "☐";
         });
 
-        const valor = datosFinales[campo];
         opciones.forEach((opt, i) => {
+
             if (valor == opt.code || valor === opt.label) {
-                datosFinales[`${prefijo}${i + 1}`] = "☑";
+
+                obj[`${prefijo}${i + 1}`] = "☑";
+
             }
         });
     }
-
-
 
     async function ejecutar() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -125,11 +126,16 @@ require([
 
             // Hallazgo 2.2: Limpiar URL para privacidad
             if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
-            aplicarCheckboxGenerico(datosFinales,  raw.A_TIPO_VISITA, [
-                { code: 1, label: "1° Visita" },
-                { code: 2, label: "2° Visita" },
-                { code: 3, label: "3° Visita" }
-            ], "v");
+            aplicarCheckboxGenerico(
+                datosFinales,
+                raw.A_TIPO_VISITA,
+                [
+                    { code: 1, label: "1° Visita" },
+                    { code: 2, label: "2° Visita" },
+                    { code: 3, label: "3° Visita" }
+                ],
+                "v"
+            );
             aplicarCheckboxGenerico(datosFinales, (raw.autorizacion), [
                 { code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble" },
                 { code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble" },
