@@ -23,13 +23,13 @@ require([
     }
     function aplicarCheckboxGenerico(datosFinales, campo, opciones, prefijo) {
         opciones.forEach((opt, i) => {
-            attr[`${prefijo}${i + 1}`] = "☐";
+            datosFinales[`${prefijo}${i + 1}`] = "☐";
         });
 
-        const valor = attr[campo];
+        const valor = datosFinales[campo];
         opciones.forEach((opt, i) => {
             if (valor == opt.code || valor === opt.label) {
-                attr[`${prefijo}${i + 1}`] = "☑";
+                datosFinales[`${prefijo}${i + 1}`] = "☑";
             }
         });
     }
