@@ -49,7 +49,7 @@ require([
         try {
             // 1. Autenticación OAuth2 (Corregida)
             const authInfo = new OAuthInfo({
-                appId: "1SYdqas0C9UqLO7U",
+                appId: "aeNAdAP7A0xhb786",
                 portalUrl: "https://www.arcgis.com",
                 popup: false
             });
