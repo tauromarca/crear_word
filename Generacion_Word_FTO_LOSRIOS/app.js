@@ -10,7 +10,7 @@ require([
     "esri/request"
 ], function (Map, MapView, FeatureLayer, Graphic, esriId, OAuthInfo, esriRequest) {
 
-    const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_934bcaaf05a04d7f9e7dec476cf62b2f/FeatureServer/0";
+    const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/survey123_d49e6e0b89674d2eb0f3e1a229925a9d_results/FeatureServer/0";
     
     const status = document.getElementById("status");
 
@@ -49,7 +49,7 @@ require([
         try {
             // 1. Autenticación OAuth2 (Corregida)
             const authInfo = new OAuthInfo({
-                appId: "aeNAdAP7A0xhb786",
+                appId: "1SYdqas0C9UqLO7U",
                 portalUrl: "https://www.arcgis.com",
                 popup: false
             });
