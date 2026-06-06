@@ -94,20 +94,27 @@ require([
                 map: new Map({ basemap: "hybrid" }),
                 ui: { components: [] }
             });
-            view.graphics.add(new Graphic({
+            const punto = new Graphic({
                 geometry: feature.geometry,
-                symbol: { type: "simple-fill", color: [255, 0, 0, 0.2], outline: { color: [255, 0, 0], width: 2 } }
-            }));
-            await view.when();
-            console.log("Tipo geometría:", feature.geometry.type);
+                symbol: {
+                    type: "simple-marker",
+                    color: "red",
+                    size: 20,
+                    outline: {
+                        color: "white",
+                        width: 2
+                    }
+                }
+            });
+            view.graphics.add(punto);
+
             await view.goTo({
-                target: feature.geometry,
+                target: punto.geometry,
                 zoom: 18
             });
-            //await view.goTo(feature.geometry.extent.expand(2.2));
-            
-            // Esperar renderizado
-            await new Promise(r => setTimeout(r, 2500));
+
+            await view.when();
+            await new Promise(r => setTimeout(r, 3000));        
             const screenshot = await view.takeScreenshot({ format: "png" });
             const mapBlob = await fetch(screenshot.dataUrl).then(r => r.blob());
 
@@ -136,7 +143,7 @@ require([
                 ],
                 "v"
             );
-            aplicarCheckboxGenerico(datosFinales, (raw.autorizacion), [
+            aplicarCheckboxGenerico(datosFinales, raw.autorizacion, [
                 { code: "Autoriza fotografías inmueble", label: "Autoriza fotografías inmueble" },
                 { code: "No autoriza fotografías inmueble", label: "No autoriza fotografías inmueble" },
                 { code: "Se deja Notificación", label: "Se deja Notificación" }
