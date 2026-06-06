@@ -108,11 +108,11 @@ require([
             });
             view.graphics.add(punto);
 
-            await view.goTo({
-                target: punto.geometry,
-                zoom: 18
-            });
-
+            await view.when();
+            
+            await view.goTo(punto.geometry);
+            
+            view.zoom = 18;
             await view.when();
             await new Promise(r => setTimeout(r, 3000));        
             const screenshot = await view.takeScreenshot({ format: "png" });
