@@ -1,5 +1,5 @@
-//import { TemplateHandler } from "https://cdn.jsdelivr.net/npm/easy-template-x@7.2.4/+esm";
-import { TemplateHandler } from "easy-template-x";
+import { TemplateHandler } from "https://cdn.jsdelivr.net/npm/easy-template-x@7.2.4/+esm";
+//import { TemplateHandler } from "easy-template-x";
 require([
     "esri/Map",
     "esri/views/MapView",
