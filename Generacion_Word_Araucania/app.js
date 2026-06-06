@@ -107,14 +107,17 @@ require([
                 }
             });
             view.graphics.add(punto);
-
+            
             await view.when();
             
-            await view.goTo(punto.geometry);
+            view.center = [
+                punto.geometry.longitude,
+                punto.geometry.latitude
+            ];
             
             view.zoom = 18;
-            await view.when();
-            await new Promise(r => setTimeout(r, 3000));        
+            
+            await new Promise(r => setTimeout(r, 3000));
             const screenshot = await view.takeScreenshot({ format: "png" });
             const mapBlob = await fetch(screenshot.dataUrl).then(r => r.blob());
 
