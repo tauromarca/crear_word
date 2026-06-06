@@ -106,6 +106,9 @@ require([
                     }
                 }
             });
+            console.log("Geometría:", punto.geometry);
+            console.log("Longitud:", punto.geometry.longitude);
+            console.log("Latitud:", punto.geometry.latitude);
             view.graphics.add(punto);
             
             await view.when();
