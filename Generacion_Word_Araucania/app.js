@@ -71,7 +71,7 @@ require([
             const raw = feature.attributes;
 
             // 3. Descargar Fotos
-            //status.textContent = "📸 Procesando adjuntos...";
+            status.textContent = "📸 Procesando adjuntos...";
             const attachments = await layer.queryAttachments({ objectIds: [oid] });
             const listaAdjuntos = attachments[oid] || [];
             const imagenesWord = [];
@@ -87,7 +87,7 @@ require([
             }
 
             // 4. Captura de Mapa
-            //status.textContent = "🗺️ Generando vista de mapa...";
+            status.textContent = "🗺️ Generando vista de mapa...";
             const view = new MapView({
                 container: "map-view",
                 map: new Map({ basemap: "hybrid" }),
