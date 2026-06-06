@@ -98,7 +98,12 @@ require([
                 symbol: { type: "simple-fill", color: [255, 0, 0, 0.2], outline: { color: [255, 0, 0], width: 2 } }
             }));
             await view.when();
-            await view.goTo(feature.geometry.extent.expand(2.2));
+            console.log("Tipo geometría:", feature.geometry.type);
+            await view.goTo({
+                target: feature.geometry,
+                zoom: 18
+            });
+            //await view.goTo(feature.geometry.extent.expand(2.2));
             
             // Esperar renderizado
             await new Promise(r => setTimeout(r, 2500));
