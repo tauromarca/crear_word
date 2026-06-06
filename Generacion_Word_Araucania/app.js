@@ -61,6 +61,29 @@ require([
             // 2. Obtener Datos
             status.textContent = "📡 Recuperando información...";
             const layer = new FeatureLayer({ url: FS_URL });
+            await layer.load();
+
+            const dominios = {};
+            
+            layer.fields.forEach(field => {
+            
+                if (
+                    field.domain &&
+                    field.domain.type === "coded-value"
+                ) {
+            
+                    dominios[field.name] = {};
+            
+                    field.domain.codedValues.forEach(cv => {
+            
+                        dominios[field.name][cv.code] = cv.name;
+            
+                    });
+                }
+            
+            });
+            
+            console.log("Dominios:", dominios);
             const result = await layer.queryFeatures({
                 where: `objectid=${oid}`,
                 outFields: ["*"],
@@ -70,6 +93,7 @@ require([
             if (!result.features.length) throw new Error("Registro no encontrado.");
             const feature = result.features[0];
             const raw = feature.attributes;
+            console.log(raw);
 
             // 3. Descargar Fotos
             status.textContent = "📸 Procesando adjuntos...";
@@ -131,12 +155,35 @@ require([
        
             // Objeto final para el template
             const datosFinales = {};
+            
             Object.keys(raw).forEach(k => {
+            
                 let val = raw[k];
-                if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
+            
+                // Convertir códigos a texto usando el dominio
+                if (
+                    dominios[k] &&
+                    dominios[k][val] !== undefined
+                ) {
+            
+                    val = dominios[k][val];
+            
+                }
+            
+                // Fechas Epoch ArcGIS
+                if (
+                    typeof val === "number" &&
+                    val > 1000000000000
+                ) {
+            
+                    val = new Date(val)
+                        .toLocaleDateString("es-CL");
+            
+                }
+            
                 datosFinales[k] = sanitize(val);
+            
             });
-
             // Hallazgo 2.2: Limpiar URL para privacidad
             if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
             aplicarCheckboxGenerico(
