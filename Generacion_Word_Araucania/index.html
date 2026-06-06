@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generando Documento DTC...</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
+        #status { color: #2c3e50; font-weight: 600; margin-top: 20px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #map-view { width: 800px; height: 600px; position: absolute; left: -10000px; } /* Mapa invisible para el screenshot */
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="loader" class="loader"></div>
+        <div id="status">Iniciando Generación de Documento Word...</div>
+    </div>
+    <!-- Contenedor para procesar el mapa en segundo plano -->
+    <div id="map-view"></div>
+
+    <script src="FileSaver.min.js"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
