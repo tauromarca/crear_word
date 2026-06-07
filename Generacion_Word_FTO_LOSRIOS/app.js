@@ -105,7 +105,7 @@ require([
                 if (adj.contentType.startsWith("image/")) {
                     const imgBlob = await fetch(adj.url).then(r => r.blob());
                     imagenesWord.push({
-                        foto: { _type: "image", source: imgBlob, format: adj.contentType, width: 250, height: 180 },
+                        foto: { _type: "image", source: imgBlob, format: adj.contentType, width: 150, height: 150 },
                         nombre_imagen: adj.name
                     });
                 }
@@ -142,7 +142,7 @@ require([
                 punto.geometry.latitude
             ];
             
-            view.zoom = 14;
+            view.zoom = 22;
             
             await new Promise(r => setTimeout(r, 3000));
             const screenshot = await view.takeScreenshot({ format: "png" });
