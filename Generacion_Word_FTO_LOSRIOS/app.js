@@ -142,7 +142,7 @@ require([
                 punto.geometry.latitude
             ];
             
-            view.zoom = 18;
+            view.zoom = 14;
             
             await new Promise(r => setTimeout(r, 3000));
             const screenshot = await view.takeScreenshot({ format: "png" });
