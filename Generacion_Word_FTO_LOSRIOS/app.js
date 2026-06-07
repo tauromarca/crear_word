@@ -142,7 +142,7 @@ require([
                 punto.geometry.latitude
             ];
             
-            view.zoom = 22;
+            view.zoom = 18;
             
             await new Promise(r => setTimeout(r, 3000));
             const screenshot = await view.takeScreenshot({ format: "png" });
@@ -215,8 +215,8 @@ require([
                     _type: "image",
                     source: mapBlob,
                     format: "image/png",
-                    width: 500,
-                    height: 350
+                    width: 400,
+                    height: 300
                 }
             });
             // 6. Generar Word
