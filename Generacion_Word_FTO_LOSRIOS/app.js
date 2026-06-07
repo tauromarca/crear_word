@@ -203,15 +203,22 @@ require([
             ], "aut");
 
  
-
+            // Crear variables imagen1, imagen2, imagen3...
+            imagenesWord.forEach((img, index) => {
+            
+                datosFinales[`imagen${index + 1}`] = img.foto;
+            
+            });
             // Inyectar lógicas específicas
             Object.assign(datosFinales, {
-                //aut1: check(raw.autorizacion),
-                //aut3: check(raw.inmueble),
-                imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
-                imagenes_adjuntas: imagenesWord
+                imagen: {
+                    _type: "image",
+                    source: mapBlob,
+                    format: "image/png",
+                    width: 500,
+                    height: 350
+                }
             });
-
             // 6. Generar Word
             status.textContent = "📝 Construyendo documento final...";
             const templateBuffer = await fetch("template.docx").then(r => r.blob());
