@@ -148,7 +148,38 @@ require([
                 imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
                 imagenes_adjuntas: imagenesWord
             });
-
+            // ============================================================
+            // TRADUCTOR DE OBRAS REALIZADAS (SELECT MULTIPLE)
+            // ============================================================
+            
+            // 1. Definimos el diccionario de traducción (basado en tu pestaña choices)
+            const diccionarioObras = {
+                "0": "Obras de Áreas Verdes y Equipamiento",
+                "1": "Obras de Cierres Perimetrales",
+                "2": "Obras de Iluminación",
+                "3": "Obras de Techumbre",
+                "4": "Obras de Ascensores, Escaleras y/o Circulaciones",
+                "5": "Obras de Fachadas y/o Muros",
+                "6": "Obras de Refuerzo Estructural",
+                "7": "Obras de Redes de Servicio",
+                "8": "Obras de Accesibilidad Universal",
+                "9": "Obras de Acondicionamiento Térmico"
+            };
+            
+            // 2. Obtenemos el valor crudo de ArcGIS (ejemplo: "0,3,7")
+            let valorCrudo = rawData["obras_realizadas"] || "";
+            
+            // 3. Procesamos la cadena
+            let listaTraducida = valorCrudo.split(',') // Divide "0,3,7" en ["0", "3", "7"]
+                .map(codigo => diccionarioObras[codigo.trim()]) // Busca cada nombre completo
+                .filter(nombre => nombre != null); // Elimina valores vacíos si los hay
+            
+            // 4. Guardamos el resultado para el Word
+            // Opción A: Como texto separado por comas elegante
+            attr["obras_realizadas"] = listaTraducida.join(", ");
+            
+            // Opción B: Si quieres que aparezca como lista con saltos de línea (Mejor para fichas)
+            attr["obras_lista"] = listaTraducida.join("\n");
             // 6. Generar Word
             status.textContent = "📝 Construyendo documento final...";
             const templateBuffer = await fetch("template.docx").then(r => r.blob());
