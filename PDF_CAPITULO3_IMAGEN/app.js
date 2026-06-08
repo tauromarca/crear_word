@@ -118,36 +118,6 @@ require([
                 p: i.p.toFixed(4), 
                 intervencion: sanitize(i.intervencion) // Usamos 'intervencion' sin acento para evitar errores de código
             }));
-
-            // Objeto final para el template
-            const datosFinales = {};
-            Object.keys(raw).forEach(k => {
-                let val = raw[k];
-                if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
-                datosFinales[k] = sanitize(val);
-            });
-
-            // Hallazgo 2.2: Limpiar URL para privacidad
-            if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
-
-            // Inyectar lógicas específicas
-            Object.assign(datosFinales, {
-                PLAGAS: check(raw.requiere_plagas),
-                ASBELTO_CUBIERTA: check(raw.requiere_asbesto_cubierta),
-                ASBELTO_FACHADA: check(raw.requiere_asbesto_fachada),
-                ASBELTO_LOGGIA: check(raw.requiere_asbesto_logia),
-                ASBELTO_REDES: check(raw.requiere_asbesto_redes),
-                RIESGO_REDES: check(raw.riesgo_redes_grave_deterioro),
-                RIESGO_ESTRUCTURA: check(raw.riesgo_estructura_grave_deterioro),
-                RIESGO_ESCALERAS: check(raw.riesgo_escaleras_grave_deterioro),
-                RIESGO_TECHUMBRE: check(raw.riesgo_techumbre_grave_deterioro),
-                EFICIENCIA_ENERGETICA: check(raw.eficiencia_energetica),
-                REGULACION: check(raw.requiere_regularizacion),
-                ACONDICIONAMIENTO: check(raw.acondicionamiento_termico),
-                tabla_priorizada: tabla,
-                imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
-                imagenes_adjuntas: imagenesWord
-            });
             // ============================================================
             // TRADUCTOR DE OBRAS REALIZADAS (SELECT MULTIPLE)
             // ============================================================
@@ -177,11 +147,44 @@ require([
             
             // 4. Guardamos el resultado para el Word
             // Opción A: Como texto separado por comas elegante
-            attr["obras_realizadas"] = listaTraducida.join(", ");
+            
+            //attr["obras_realizadas"] = listaTraducida.join(", ");
             
             // Opción B: Si quieres que aparezca como lista con saltos de línea (Mejor para fichas)
-            attr["obras_lista"] = listaTraducida.join("\n");
-            // 6. Generar Word
+            
+            //attr["obras_lista"] = listaTraducida.join("\n");
+  
+            // Objeto final para el template
+            const datosFinales = {};
+            Object.keys(raw).forEach(k => {
+                let val = raw[k];
+                if (typeof val === 'number' && val > 1e12) val = new Date(val).toLocaleDateString("es-CL");
+                datosFinales[k] = sanitize(val);
+            });
+
+            // Hallazgo 2.2: Limpiar URL para privacidad
+            if (window.history.replaceState) window.history.replaceState({}, "", window.location.pathname);
+
+            // Inyectar lógicas específicas
+            Object.assign(datosFinales, {
+                PLAGAS: check(raw.requiere_plagas),
+                ASBELTO_CUBIERTA: check(raw.requiere_asbesto_cubierta),
+                ASBELTO_FACHADA: check(raw.requiere_asbesto_fachada),
+                ASBELTO_LOGGIA: check(raw.requiere_asbesto_logia),
+                ASBELTO_REDES: check(raw.requiere_asbesto_redes),
+                RIESGO_REDES: check(raw.riesgo_redes_grave_deterioro),
+                RIESGO_ESTRUCTURA: check(raw.riesgo_estructura_grave_deterioro),
+                RIESGO_ESCALERAS: check(raw.riesgo_escaleras_grave_deterioro),
+                RIESGO_TECHUMBRE: check(raw.riesgo_techumbre_grave_deterioro),
+                EFICIENCIA_ENERGETICA: check(raw.eficiencia_energetica),
+                REGULACION: check(raw.requiere_regularizacion),
+                ACONDICIONAMIENTO: check(raw.acondicionamiento_termico),
+                tabla_priorizada: tabla,
+                obras_realizadas : listaTraducida.join(", "),
+                imagen: { _type: "image", source: mapBlob, format: "image/png", width: 500, height: 350 },
+                imagenes_adjuntas: imagenesWord
+            });
+          // 6. Generar Word
             status.textContent = "📝 Construyendo documento final...";
             const templateBuffer = await fetch("template.docx").then(r => r.blob());
             const handler = new TemplateHandler();
