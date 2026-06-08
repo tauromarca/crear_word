@@ -167,7 +167,8 @@ require([
             };
             
             // 2. Obtenemos el valor crudo de ArcGIS (ejemplo: "0,3,7")
-            let valorCrudo = rawData["obras_realizadas"] || "";
+            let valorCrudo =  raw.obras_realizadas || "";
+           
             
             // 3. Procesamos la cadena
             let listaTraducida = valorCrudo.split(',') // Divide "0,3,7" en ["0", "3", "7"]
