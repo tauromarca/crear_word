@@ -11,7 +11,7 @@ require([
     "esri/request"
 ], function (Map, MapView, FeatureLayer, Graphic, esriId, OAuthInfo, esriRequest) {
 
-    const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_885775529ba244759922b6cef00631de_form/FeatureServer/0";
+    const FS_URL = "https://services3.arcgis.com/cTnMkBRk4HWkUCRo/arcgis/rest/services/service_885775529ba244759922b6cef00631de/FeatureServer/0";
     const status = document.getElementById("status");
 
     // Hallazgo 2.1: Sanitización de datos
